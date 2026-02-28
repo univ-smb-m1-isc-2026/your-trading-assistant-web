@@ -19,8 +19,7 @@
  */
 
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { LoginPage } from '@/pages/login-page'
-import { RegisterPage } from '@/pages/register-page'
+import { LoginPage, RegisterPage } from '@/features/auth'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { ProtectedRoute } from '@/components/protected-route'
 

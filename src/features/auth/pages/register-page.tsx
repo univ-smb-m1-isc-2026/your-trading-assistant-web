@@ -1,57 +1,14 @@
 /**
- * Page d'inscription.
+ * Page d'inscription — JSX pur.
  *
- * Même architecture que login-page : logique dans useRegister(),
- * composant = JSX pur.
- *
- * Champs requis par l'API (voir API-TEST-COMMANDS.md) :
- *   - username : string non vide
- *   - email    : email valide
- *   - password : min 8 caractères
- *
- * Après inscription réussie, le backend retourne directement un JWT
- * (l'utilisateur est connecté immédiatement, pas besoin de re-login).
+ * Même principe que login-page.tsx : aucune logique, tout est dans useRegister().
+ * La contrainte minLength={8} sur l'input password est une validation HTML5
+ * native (première ligne de défense, sans JS) — le backend valide également.
  */
 
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { register } from '@/services/auth-service'
-import { useAuthStore } from '@/stores/use-auth-store'
+import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
-
-function useRegister() {
-  const setToken = useAuthStore((s) => s.setToken)
-  const navigate = useNavigate()
-
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    try {
-      const { token } = await register({ username, email, password })
-      setToken(token)
-      navigate('/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return {
-    username, setUsername,
-    email, setEmail,
-    password, setPassword,
-    error, loading, handleSubmit,
-  }
-}
+import { useRegister } from '../hooks/use-register'
 
 export function RegisterPage() {
   const {

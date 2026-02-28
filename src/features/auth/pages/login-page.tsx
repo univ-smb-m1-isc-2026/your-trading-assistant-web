@@ -1,49 +1,18 @@
 /**
- * Page de connexion.
+ * Page de connexion — JSX pur.
  *
- * Architecture : logique extraite dans un hook useLogin() local,
- * le composant LoginPage ne fait que du JSX.
+ * Ce composant ne contient aucune logique métier : tout est délégué
+ * à useLogin(). Son seul rôle est de décrire la mise en page et les
+ * interactions visuelles (labels, placeholders, états disabled/loading).
  *
- * Flux complet :
- *   1. L'utilisateur remplit email + password et soumet
- *   2. useLogin() appelle authService.login()
- *   3. En cas de succès → setToken(token) dans le store + redirect /dashboard
- *   4. En cas d'erreur → affiche le message d'erreur dans le formulaire
+ * C'est le pattern "Container / Presenter" appliqué via un hook :
+ *   useLogin()   = le "container" (logique, effets, state)
+ *   LoginPage    = le "presenter" (JSX, accessibilité, style)
  */
 
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { login } from '@/services/auth-service'
-import { useAuthStore } from '@/stores/use-auth-store'
+import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
-
-function useLogin() {
-  const setToken = useAuthStore((s) => s.setToken)
-  const navigate = useNavigate()
-
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    try {
-      const { token } = await login({ email, password })
-      setToken(token)
-      navigate('/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return { email, setEmail, password, setPassword, error, loading, handleSubmit }
-}
+import { useLogin } from '../hooks/use-login'
 
 export function LoginPage() {
   const { email, setEmail, password, setPassword, error, loading, handleSubmit } = useLogin()
