@@ -2,10 +2,12 @@
  * Définition des routes de l'application.
  *
  * Arborescence :
- *   /              → redirige vers /login
- *   /login         → LoginPage (publique)
- *   /register      → RegisterPage (publique)
- *   /dashboard     → DashboardPage (protégée — nécessite un JWT)
+ *   /                    → redirige vers /login
+ *   /login               → LoginPage (publique)
+ *   /register            → RegisterPage (publique)
+ *   /dashboard           → AssetsPage (protégée — liste des marchés)
+ *   /assets/:symbol      → AssetDetailPage (protégée — graphique candlestick)
+ *   *                    → redirige vers /login
  *
  * Pourquoi <Routes> + <Route> et non une config objet (useRoutes) ?
  *   → La syntaxe JSX est plus lisible pour un projet de cette taille.
@@ -20,7 +22,7 @@
 
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage, RegisterPage } from '@/features/auth'
-import { DashboardPage } from '@/pages/dashboard-page'
+import { AssetsPage, AssetDetailPage } from '@/features/market'
 import { ProtectedRoute } from '@/components/protected-route'
 
 export function App() {
@@ -35,7 +37,8 @@ export function App() {
 
       {/* Routes protégées : ProtectedRoute vérifie le JWT avant de rendre <Outlet /> */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<AssetsPage />} />
+        <Route path="/assets/:symbol" element={<AssetDetailPage />} />
       </Route>
 
       {/* Fallback : toute URL inconnue → /login */}

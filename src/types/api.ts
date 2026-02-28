@@ -30,3 +30,36 @@ export interface RegisterRequest {
   email: string
   password: string
 }
+
+// --- Market ---
+
+/**
+ * Un asset retourné par GET /assets.
+ * lastPrice et lastDate sont null si aucune donnée de prix n'est disponible.
+ */
+export interface Asset {
+  symbol: string
+  lastPrice: number | null
+  lastDate: string | null
+}
+
+/**
+ * Une bougie OHLCV retournée par GET /assets/{symbol}/candles.
+ * date est au format ISO 8601 (YYYY-MM-DD).
+ */
+export interface Candle {
+  date: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+/**
+ * Réponse d'erreur retournée par l'API (ex: 404 sur /assets/{symbol}).
+ */
+export interface AssetError {
+  error: string
+  symbol: string
+}
