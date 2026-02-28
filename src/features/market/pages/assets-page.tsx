@@ -12,11 +12,16 @@
  * des favoris en un clic, même pour les assets indisponibles (lastPrice null).
  * Pendant le toggle, le bouton est désactivé pour éviter les double-clics.
  *
+ * Recherche : un champ de recherche dans le header filtre les assets par
+ * symbole en temps réel (client-side, insensible à la casse). Le compteur
+ * s'adapte pour indiquer le nombre de résultats filtrés vs total.
+ *
  * La logique de fetch et de tri des assets est dans useAssets().
  * La logique des favoris est dans useFavorites().
  * Ce composant ne contient que du JSX de présentation.
  */
 
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAssets } from '../hooks/use-assets'
 import { useFavorites } from '../hooks/use-favorites'
@@ -183,6 +188,12 @@ export function AssetsPage() {
   const { assets, loading: assetsLoading, error: assetsError } = useAssets()
   const { isFavorite, toggleFavorite, toggling, loading: favLoading, error: favError } = useFavorites()
 
+  // ─── Recherche client-side ──────────────────────────────────────────────
+  // Pourquoi client-side ? Tous les assets sont déjà en mémoire (chargés
+  // par useAssets). Un filter() local est instantané, pas besoin de
+  // solliciter le backend. Le filtre est insensible à la casse.
+  const [search, setSearch] = useState('')
+
   const loading = assetsLoading || favLoading
   const error = assetsError ?? favError
 
@@ -209,21 +220,60 @@ export function AssetsPage() {
 
   const availableCount = assets.filter((a) => a.lastPrice !== null).length
 
+  // Filtrer les assets par le terme de recherche (insensible à la casse).
+  // Si le champ est vide, on affiche tous les assets (pas de filtre).
+  const query = search.trim().toLowerCase()
+  const filteredAssets = query
+    ? assets.filter((a) => a.symbol.toLowerCase().includes(query))
+    : assets
+
   return (
     <div className="p-6">
-      {/* En-tête */}
-      <div className="mb-6 flex items-end justify-between">
+      {/* En-tête avec titre + champ de recherche */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Marchés</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {availableCount} actif{availableCount > 1 ? 's' : ''} disponible{availableCount > 1 ? 's' : ''} sur {assets.length}
           </p>
         </div>
+
+        {/* Champ de recherche — visible uniquement quand il y a des assets */}
+        {assets.length > 0 && (
+          <div className="relative">
+            {/* Icône loupe (SVG inline — pas d'icon library) */}
+            <svg
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-slate-400 dark:stroke-slate-500"
+              fill="none"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher un actif..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary sm:w-64"
+            />
+          </div>
+        )}
       </div>
 
       {assets.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
           <p className="text-slate-500 dark:text-slate-400">Aucun actif disponible.</p>
+        </div>
+      ) : filteredAssets.length === 0 ? (
+        /* Aucun résultat pour la recherche */
+        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Aucun actif ne correspond à <span className="font-semibold text-slate-700 dark:text-slate-300">« {search} »</span>
+          </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -257,7 +307,7 @@ export function AssetsPage() {
                 </tr>
               </thead>
               <tbody>
-                {assets.map((asset, index) => (
+                {filteredAssets.map((asset, index) => (
                   <AssetRow
                     key={asset.symbol}
                     asset={asset}

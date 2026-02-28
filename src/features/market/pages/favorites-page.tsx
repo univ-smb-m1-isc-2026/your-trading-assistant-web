@@ -6,6 +6,9 @@
  *   - Utilise useFavorites() comme source de données (pas useAssets())
  *   - Affiche un état vide avec invitation si aucun favori
  *
+ * Recherche : même champ de recherche que AssetsPage, filtre les favoris
+ * par symbole en temps réel (client-side, insensible à la casse).
+ *
  * Pourquoi réutiliser le même tableau que AssetsPage ?
  *   → Cohérence UX : l'utilisateur retrouve les mêmes colonnes, les mêmes
  *   interactions (clic pour voir le détail, étoile pour retirer), les mêmes
@@ -18,6 +21,7 @@
  *   déclenche donc aucune nouvelle requête réseau.
  */
 
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useFavorites } from '../hooks/use-favorites'
 import { cn } from '@/utils/cn'
@@ -173,6 +177,13 @@ function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowPro
 
 export function FavoritesPage() {
   const { favorites, loading, error, toggling, toggleFavorite } = useFavorites()
+  const [search, setSearch] = useState('')
+
+  // Filtrer les favoris par le terme de recherche
+  const query = search.trim().toLowerCase()
+  const filteredFavorites = query
+    ? favorites.filter((a) => a.symbol.toLowerCase().includes(query))
+    : favorites
 
   if (loading) {
     return (
@@ -197,14 +208,38 @@ export function FavoritesPage() {
 
   return (
     <div className="p-6">
-      {/* En-tête */}
-      <div className="mb-6 flex items-end justify-between">
+      {/* En-tête avec titre + champ de recherche */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Favoris</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {favorites.length} actif{favorites.length > 1 ? 's' : ''} en favori{favorites.length > 1 ? 's' : ''}
           </p>
         </div>
+
+        {/* Champ de recherche — visible uniquement quand il y a des favoris */}
+        {favorites.length > 0 && (
+          <div className="relative">
+            <svg
+              viewBox="0 0 24 24"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-slate-400 dark:stroke-slate-500"
+              fill="none"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher un favori..."
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary sm:w-64"
+            />
+          </div>
+        )}
       </div>
 
       {favorites.length === 0 ? (
@@ -233,6 +268,13 @@ export function FavoritesPage() {
           >
             Aller aux marchés
           </Link>
+        </div>
+      ) : filteredFavorites.length === 0 ? (
+        /* Aucun résultat pour la recherche */
+        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Aucun favori ne correspond à <span className="font-semibold text-slate-700 dark:text-slate-300">« {search} »</span>
+          </p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -265,7 +307,7 @@ export function FavoritesPage() {
                 </tr>
               </thead>
               <tbody>
-                {favorites.map((asset, index) => (
+                {filteredFavorites.map((asset, index) => (
                   <FavoriteRow
                     key={asset.symbol}
                     asset={asset}

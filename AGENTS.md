@@ -99,9 +99,9 @@ features/market/
 │   ├── use-favorites.ts       # Read/toggle favorites via REST + useFavoritesStore
 │   └── use-moving-averages.ts # Fetch SMA/EMA series, refetch on type/periods change
 ├── pages/
-│   ├── assets-page.tsx        # Binance-style table of assets with star column
+│   ├── assets-page.tsx        # Binance-style table of assets with star column + search
 │   ├── asset-detail-page.tsx  # Candlestick chart + MA controls bar
-│   └── favorites-page.tsx     # Filtered table of starred assets
+│   └── favorites-page.tsx     # Filtered table of starred assets + search
 └── index.ts
 ```
 
@@ -452,6 +452,35 @@ Favorites are managed via three REST endpoints (GET / POST / DELETE) and cached 
 
 ---
 
+## Search / Filtering
+
+Both `AssetsPage` and `FavoritesPage` include a search input that filters the displayed assets by symbol in real time.
+
+### Implementation pattern
+
+```tsx
+const [search, setSearch] = useState('')
+
+const query = search.trim().toLowerCase()
+const filteredAssets = query
+  ? assets.filter((a) => a.symbol.toLowerCase().includes(query))
+  : assets
+```
+
+- **Client-side only.** All assets are already loaded in memory by `useAssets()` / `useFavorites()`. A local `filter()` is instantaneous — no backend search endpoint needed.
+- **Case-insensitive.** The query and symbol are both lowercased before comparison.
+- **No debounce needed.** `Array.filter()` on a few hundred items is sub-millisecond. Debouncing would add complexity for no measurable benefit at this scale.
+- **Search input** uses a magnifying glass SVG icon (inline, no icon library) positioned inside the input via `absolute` + `pl-10`.
+- **"No results" state.** When the filter matches nothing, a centered message shows the search term in bold: `Aucun actif ne correspond à « query »`.
+- **Hidden when empty.** The search input is only rendered when there are assets/favorites to filter — it disappears on the empty state.
+- **State is local** (`useState` in the page component). There is no reason to persist or share the search query — it resets on navigation, which is the expected UX.
+
+### Why not a shared search hook?
+
+The search logic is 3 lines of code (state + trim + filter). Extracting a hook would add a file, an import, and an abstraction layer for negligible deduplication. If future pages need more complex filtering (multiple fields, fuzzy matching), a shared hook would make sense. For now, inline is simpler.
+
+---
+
 ## Known Gotchas & Design Decisions
 
 | Topic | Decision | Why |
@@ -463,3 +492,4 @@ Favorites are managed via three REST endpoints (GET / POST / DELETE) and cached 
 | Favorites cache | `loaded` flag in store | Avoids double-fetching on navigation |
 | Tooltip at 60fps | Direct DOM via ref, not `useState` | Prevents React re-render storms |
 | `periodsKey` in `useMovingAverages` | Serialize `periods[]` to string for `useEffect` deps | Array identity changes every render; string comparison is stable |
+| Search filtering | Client-side `filter()` with local `useState` | All data already in memory; no backend search endpoint needed |
