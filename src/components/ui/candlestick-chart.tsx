@@ -9,6 +9,7 @@
  *
  * API v5 : chart.addSeries(CandlestickSeries, options) remplace l'ancienne
  *   méthode chart.addCandlestickSeries() de la v4.
+ *   De même, chart.addSeries(LineSeries, options) pour les moyennes mobiles.
  *
  * Support thème clair/sombre :
  *   lightweight-charts est vanilla JS — il ne réagit pas aux classes CSS.
@@ -16,6 +17,11 @@
  *   correspondantes au chart. Le useEffect dépend de `theme` : quand
  *   l'utilisateur bascule, le chart est détruit et recréé avec les
  *   nouvelles couleurs.
+ *
+ * Moyennes mobiles :
+ *   Chaque MovingAverageSeries reçue en prop génère une LineSeries sur le chart.
+ *   Les couleurs sont attribuées par période via MA_COLORS (bleu, orange, violet).
+ *   Les valeurs MA sont intégrées dans le tooltip au survol.
  *
  * Tooltip au survol (crosshair) :
  *   On utilise chart.subscribeCrosshairMove() pour détecter le survol.
@@ -26,14 +32,24 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createChart, CandlestickSeries } from 'lightweight-charts'
-import type { Candle } from '@/types/api'
+import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
+import type { ISeriesApi } from 'lightweight-charts'
+import type { Candle, MovingAverageSeries } from '@/types/api'
 import { useThemeStore } from '@/stores/use-theme-store'
+
+/**
+ * Couleurs attribuées aux lignes MA par période.
+ * L'index est la position de la période triée par ordre croissant.
+ * Bleu = court terme, orange = moyen terme, violet = long terme.
+ */
+const MA_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ec4899']
 
 interface CandlestickChartProps {
   candles: Candle[]
   /** Hauteur du graphique en pixels (défaut : 400) */
   height?: number
+  /** Séries de moyennes mobiles à afficher en overlay sur le chart */
+  movingAverages?: MovingAverageSeries[]
 }
 
 /**
@@ -89,9 +105,19 @@ function formatDate(dateStr: string): string {
 }
 
 /**
+ * Retourne la couleur attribuée à une MA selon son rang dans la liste triée.
+ */
+function getMaColor(index: number): string {
+  return MA_COLORS[index % MA_COLORS.length]
+}
+
+/**
  * Génère le HTML interne du tooltip.
  * On écrit directement dans innerHTML pour éviter la création de
  * nombreux éléments DOM à chaque frame (perf ~60fps).
+ *
+ * maValues contient les valeurs des MAs à la date courante, ou undefined
+ * si la MA n'a pas de valeur à cette date (pas assez de données).
  */
 function buildTooltipHtml(
   date: string,
@@ -101,6 +127,7 @@ function buildTooltipHtml(
   close: number,
   volume: number | undefined,
   theme: 'light' | 'dark',
+  maValues: Array<{ type: string; period: number; value: number | undefined; color: string }>,
 ): string {
   const isUp = close >= open
   const variation = ((close - open) / open) * 100
@@ -123,6 +150,16 @@ function buildTooltipHtml(
       <span style="font-size:12px;font-weight:600;font-family:monospace;color:${color};">${value}</span>
     </div>`
 
+  // Lignes MA dans le tooltip
+  const maRows = maValues
+    .filter((ma) => ma.value !== undefined)
+    .map((ma) => row(`${ma.type} ${ma.period}`, formatPrice(ma.value!), ma.color))
+    .join('')
+
+  const maSection = maRows
+    ? `<div style="border-top:1px solid ${dividerColor};margin-top:4px;padding-top:4px;">${maRows}</div>`
+    : ''
+
   return `
     <div style="padding:10px 14px 8px;">
       <div style="font-size:11px;font-weight:700;color:${dateColor};margin-bottom:8px;letter-spacing:0.02em;">${formatDate(date)}</div>
@@ -135,12 +172,13 @@ function buildTooltipHtml(
         <div style="border-top:1px solid ${dividerColor};margin-top:4px;padding-top:4px;">
           ${row('Variation', variationStr, variationColor)}
         </div>
+        ${maSection}
       </div>
     </div>
   `
 }
 
-export function CandlestickChart({ candles, height = 400 }: CandlestickChartProps) {
+export function CandlestickChart({ candles, height = 400, movingAverages = [] }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const theme = useThemeStore((s) => s.theme)
@@ -173,7 +211,7 @@ export function CandlestickChart({ candles, height = 400 }: CandlestickChartProp
       },
     })
 
-    const series = chart.addSeries(CandlestickSeries, {
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderUpColor: '#22c55e',
@@ -191,12 +229,59 @@ export function CandlestickChart({ candles, height = 400 }: CandlestickChartProp
       close: c.close,
     }))
 
-    series.setData(chartData)
+    candleSeries.setData(chartData)
+
+    // ─── Moyennes Mobiles (LineSeries overlay) ──────────────────────────────
+    //
+    // Chaque MovingAverageSeries génère une LineSeries avec une couleur
+    // attribuée par index. Les séries sont triées par période croissante
+    // pour que les couleurs soient stables (bleu = plus courte, etc.).
+    //
+    // On stocke les séries dans un tableau pour pouvoir récupérer leurs
+    // valeurs dans le callback crosshairMove.
+
+    const sortedMA = [...movingAverages].sort((a, b) => a.period - b.period)
+
+    interface MaSeriesEntry {
+      type: string
+      period: number
+      color: string
+      series: ISeriesApi<'Line'>
+      valueByDate: Map<string, number>
+    }
+
+    const maSeriesEntries: MaSeriesEntry[] = sortedMA.map((ma, index) => {
+      // Si le parent a fourni une couleur (via MovingAverageSeries.color),
+      // on l'utilise directement. Sinon, fallback sur la couleur par rang.
+      const color = ma.color ?? getMaColor(index)
+
+      const lineSeries = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 2,
+        // Pas d'axe de prix dédié — partage l'axe du candlestick
+        priceLineVisible: false,
+        // Pas de label de prix sur l'axe droit pour éviter l'encombrement
+        lastValueVisible: false,
+      })
+
+      const lineData = ma.values.map((v) => ({
+        time: v.date as `${number}-${number}-${number}`,
+        value: v.value,
+      }))
+
+      lineSeries.setData(lineData)
+
+      // Lookup Map pour le tooltip : date → valeur MA
+      const valueByDate = new Map<string, number>(
+        ma.values.map((v) => [v.date, v.value]),
+      )
+
+      return { type: ma.type, period: ma.period, color, series: lineSeries, valueByDate }
+    })
+
     chart.timeScale().fitContent()
 
     // Lookup Map : date string → Candle complet (pour récupérer le volume)
-    // Le volume n'est pas passé à lightweight-charts (il ne l'affiche pas
-    // dans une série candlestick), mais on peut l'afficher dans notre tooltip.
     const candleByDate = new Map<string, Candle>(candles.map((c) => [c.date, c]))
 
     // Dimensions du container pour la logique de positionnement
@@ -227,7 +312,7 @@ export function CandlestickChart({ candles, height = 400 }: CandlestickChartProp
       }
 
       // Récupérer les données OHLC depuis la Map interne du chart
-      const rawData = param.seriesData.get(series)
+      const rawData = param.seriesData.get(candleSeries)
       if (!rawData || !('open' in rawData)) {
         tooltip.style.display = 'none'
         return
@@ -243,14 +328,18 @@ export function CandlestickChart({ candles, height = 400 }: CandlestickChartProp
       const dateStr = param.time as string
       const volume = candleByDate.get(dateStr)?.volume
 
+      // Récupérer les valeurs MA à cette date
+      const maValues = maSeriesEntries.map((entry) => ({
+        type: entry.type,
+        period: entry.period,
+        value: entry.valueByDate.get(dateStr),
+        color: entry.color,
+      }))
+
       // Remplir le contenu du tooltip
-      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme)
+      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues)
 
       // ─── Positionnement intelligent ──────────────────────────────────────────
-      // param.point.x / y = coordonnées pixel dans le chart (depuis le bord gauche)
-      // On positionne le tooltip en absolute dans le wrapper parent.
-      // La topbar du chart (axe du temps) fait ~32px → on l'intègre dans le calcul.
-
       const OFFSET_X = 14
       const OFFSET_Y = -8
       const tooltipW = tooltip.offsetWidth
@@ -284,7 +373,7 @@ export function CandlestickChart({ candles, height = 400 }: CandlestickChartProp
       chart.remove()
       tooltip.style.display = 'none'
     }
-  }, [candles, height, theme])
+  }, [candles, height, theme, movingAverages])
 
   // Styles du tooltip — définis inline car ils sont fixes (non conditionnels)
   // et doivent être appliqués avant que le JS du chart les modifie.

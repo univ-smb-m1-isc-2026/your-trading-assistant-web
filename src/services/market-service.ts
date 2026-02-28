@@ -7,7 +7,7 @@
  */
 
 import { apiClient } from './api-client'
-import type { Asset, Candle } from '@/types/api'
+import type { Asset, Candle, MovingAverageSeries } from '@/types/api'
 
 /**
  * Récupère la liste de tous les assets disponibles.
@@ -56,4 +56,30 @@ export async function addFavorite(symbol: string): Promise<void> {
  */
 export async function removeFavorite(symbol: string): Promise<void> {
   await apiClient.request<void>(`/assets/${symbol}/favorite`, { method: 'DELETE' })
+}
+
+// --- Moyennes Mobiles ---
+
+/**
+ * Récupère les moyennes mobiles d'un asset donné.
+ * GET /assets/{symbol}/moving-averages?type={type}&periods={periods}
+ *
+ * @param symbol  - Le ticker de l'asset (ex: "BTC")
+ * @param type    - "SMA" ou "EMA"
+ * @param periods - Tableau de périodes (ex: [20, 50])
+ * @throws Error HTTP 400 si type ou periods invalide
+ * @throws Error HTTP 404 si le symbol est inconnu
+ */
+export async function getMovingAverages(
+  symbol: string,
+  type: 'SMA' | 'EMA',
+  periods: number[],
+): Promise<MovingAverageSeries[]> {
+  const params = new URLSearchParams({
+    type,
+    periods: periods.join(','),
+  })
+  return apiClient.request<MovingAverageSeries[]>(
+    `/assets/${symbol}/moving-averages?${params.toString()}`,
+  )
 }
