@@ -23,13 +23,31 @@ interface AuthState {
   token: string | null
 
   /**
+   * true quand l'API a renvoyé un 403 — déclenche l'affichage de la modal
+   * "Session expirée". Remis à false au logout ou si l'utilisateur ignore.
+   *
+   * Pourquoi dans ce store plutôt qu'un store dédié ?
+   *   → Un 403 est un problème d'authentification (token invalide ou expiré).
+   *   Il appartient sémantiquement au domaine auth. Pas besoin d'un store
+   *   supplémentaire pour un seul boolean.
+   */
+  sessionExpired: boolean
+
+  /**
    * Persiste le token en mémoire (Zustand) ET dans localStorage.
    * Appelé après un login ou register réussi.
    */
   setToken: (token: string) => void
 
   /**
+   * Positionne le flag sessionExpired.
+   * Appelé par api-client.ts via getState() lorsqu'un 403 est reçu.
+   */
+  setSessionExpired: (value: boolean) => void
+
+  /**
    * Efface le token partout. Appelé lors du logout.
+   * Remet également sessionExpired à false pour nettoyer l'état.
    */
   logout: () => void
 }
@@ -38,14 +56,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   // Initialisation : on relit localStorage pour restaurer la session
   // si l'utilisateur avait déjà un token valide.
   token: localStorage.getItem(TOKEN_KEY),
+  sessionExpired: false,
 
   setToken: (token) => {
     localStorage.setItem(TOKEN_KEY, token)
     set({ token })
   },
 
+  setSessionExpired: (value) => set({ sessionExpired: value }),
+
   logout: () => {
     localStorage.removeItem(TOKEN_KEY)
-    set({ token: null })
+    set({ token: null, sessionExpired: false })
   },
 }))

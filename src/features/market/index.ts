@@ -7,3 +7,4 @@
 
 export { AssetsPage } from './pages/assets-page'
 export { AssetDetailPage } from './pages/asset-detail-page'
+export { FavoritesPage } from './pages/favorites-page'

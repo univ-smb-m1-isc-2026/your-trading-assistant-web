@@ -27,3 +27,33 @@ export async function getAssets(): Promise<Asset[]> {
 export async function getCandles(symbol: string): Promise<Candle[]> {
   return apiClient.request<Candle[]>(`/assets/${symbol}/candles`)
 }
+
+// --- Favoris ---
+
+/**
+ * Récupère la liste des assets favoris de l'utilisateur connecté.
+ * GET /assets/favorites — nécessite un JWT valide.
+ */
+export async function getFavorites(): Promise<Asset[]> {
+  return apiClient.request<Asset[]>('/assets/favorites')
+}
+
+/**
+ * Ajoute un asset aux favoris de l'utilisateur connecté.
+ * POST /assets/{symbol}/favorite — nécessite un JWT valide.
+ *
+ * @param symbol - Le ticker de l'asset à ajouter (ex: "BTC")
+ */
+export async function addFavorite(symbol: string): Promise<void> {
+  await apiClient.request<void>(`/assets/${symbol}/favorite`, { method: 'POST' })
+}
+
+/**
+ * Retire un asset des favoris de l'utilisateur connecté.
+ * DELETE /assets/{symbol}/favorite — nécessite un JWT valide.
+ *
+ * @param symbol - Le ticker de l'asset à retirer (ex: "BTC")
+ */
+export async function removeFavorite(symbol: string): Promise<void> {
+  await apiClient.request<void>(`/assets/${symbol}/favorite`, { method: 'DELETE' })
+}

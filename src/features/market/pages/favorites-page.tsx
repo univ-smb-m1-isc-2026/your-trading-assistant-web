@@ -1,33 +1,28 @@
 /**
- * Page : liste de tous les assets — style tableau Binance.
+ * Page : liste des assets favoris de l'utilisateur.
  *
- * Redesign complet : la grille de cards est remplacée par un tableau
- * professionnel avec colonnes triables, lignes cliquables, et support
- * du thème clair/sombre.
+ * Structure identique à AssetsPage (même tableau style Binance) mais :
+ *   - N'affiche que les assets ajoutés en favoris par l'utilisateur
+ *   - Utilise useFavorites() comme source de données (pas useAssets())
+ *   - Affiche un état vide avec invitation si aucun favori
  *
- * Colonnes : ⭐ (favori), #, Actif, Dernier Prix, Variation 24h (placeholder),
- *            Dernière MAJ, Statut, Action.
+ * Pourquoi réutiliser le même tableau que AssetsPage ?
+ *   → Cohérence UX : l'utilisateur retrouve les mêmes colonnes, les mêmes
+ *   interactions (clic pour voir le détail, étoile pour retirer), les mêmes
+ *   styles. Moins de surface cognitive.
  *
- * La colonne ⭐ est toujours visible et permet d'ajouter/retirer un asset
- * des favoris en un clic, même pour les assets indisponibles (lastPrice null).
- * Pendant le toggle, le bouton est désactivé pour éviter les double-clics.
- *
- * La logique de fetch et de tri des assets est dans useAssets().
- * La logique des favoris est dans useFavorites().
- * Ce composant ne contient que du JSX de présentation.
+ * Pourquoi useFavorites() et non un nouveau hook ?
+ *   → useFavorites() charge les favoris depuis l'API si le store n'est pas
+ *   encore peuplé (loaded=false), sinon il lit directement le store. Naviguer
+ *   depuis AssetsPage (qui a déjà peuplé le store) vers FavoritesPage ne
+ *   déclenche donc aucune nouvelle requête réseau.
  */
 
-import { useNavigate } from 'react-router-dom'
-import { useAssets } from '../hooks/use-assets'
+import { Link, useNavigate } from 'react-router-dom'
 import { useFavorites } from '../hooks/use-favorites'
 import { cn } from '@/utils/cn'
 import type { Asset } from '@/types/api'
 
-/**
- * Icône étoile SVG inline.
- * filled=true → étoile pleine jaune (asset en favori)
- * filled=false → étoile vide (asset non favori)
- */
 function StarIcon({ filled }: { filled: boolean }) {
   return (
     <svg
@@ -49,16 +44,14 @@ function StarIcon({ filled }: { filled: boolean }) {
   )
 }
 
-interface AssetRowProps {
+interface FavoriteRowProps {
   asset: Asset
   rank: number
-  isFavorite: boolean
-  /** Symbol en cours de toggle (null si aucun). Utilisé pour le disabled state. */
   toggling: string | null
   onToggleFavorite: (symbol: string) => Promise<void>
 }
 
-function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: AssetRowProps) {
+function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowProps) {
   const navigate = useNavigate()
   const isAvailable = asset.lastPrice !== null
   const isToggling = toggling === asset.symbol
@@ -70,7 +63,6 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
   }
 
   function handleStarClick(e: React.MouseEvent) {
-    // Stoppe la propagation pour ne pas déclencher handleRowClick
     e.stopPropagation()
     void onToggleFavorite(asset.symbol)
   }
@@ -84,12 +76,12 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
           : 'opacity-50',
       )}
     >
-      {/* Colonne ⭐ — toujours cliquable, indépendante du statut de l'asset */}
+      {/* Colonne ⭐ — étoile toujours pleine ici (tous les assets affichés sont favoris) */}
       <td className="px-3 py-3 text-center">
         <button
           onClick={handleStarClick}
           disabled={toggling !== null}
-          title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          title="Retirer des favoris"
           className={cn(
             'inline-flex items-center justify-center rounded p-0.5 transition-colors',
             toggling !== null
@@ -98,7 +90,7 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
             isToggling && 'animate-pulse',
           )}
         >
-          <StarIcon filled={isFavorite} />
+          <StarIcon filled={true} />
         </button>
       </td>
 
@@ -133,7 +125,7 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
         )}
       </td>
 
-      {/* Variation 24h — placeholder (pas dans l'API) */}
+      {/* Variation 24h — placeholder */}
       <td
         onClick={handleRowClick}
         className="px-4 py-3 text-right text-sm text-slate-400 dark:text-slate-500"
@@ -179,19 +171,15 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
   )
 }
 
-export function AssetsPage() {
-  const { assets, loading: assetsLoading, error: assetsError } = useAssets()
-  const { isFavorite, toggleFavorite, toggling, loading: favLoading, error: favError } = useFavorites()
-
-  const loading = assetsLoading || favLoading
-  const error = assetsError ?? favError
+export function FavoritesPage() {
+  const { favorites, loading, error, toggling, toggleFavorite } = useFavorites()
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-700 dark:border-t-primary" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Chargement des marchés...</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Chargement des favoris...</p>
         </div>
       </div>
     )
@@ -207,23 +195,44 @@ export function AssetsPage() {
     )
   }
 
-  const availableCount = assets.filter((a) => a.lastPrice !== null).length
-
   return (
     <div className="p-6">
       {/* En-tête */}
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Marchés</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Favoris</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {availableCount} actif{availableCount > 1 ? 's' : ''} disponible{availableCount > 1 ? 's' : ''} sur {assets.length}
+            {favorites.length} actif{favorites.length > 1 ? 's' : ''} en favori{favorites.length > 1 ? 's' : ''}
           </p>
         </div>
       </div>
 
-      {assets.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-slate-500 dark:text-slate-400">Aucun actif disponible.</p>
+      {favorites.length === 0 ? (
+        /* État vide — invitation à ajouter des favoris */
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-700 dark:bg-slate-900">
+          <svg
+            viewBox="0 0 24 24"
+            className="mb-4 h-12 w-12 fill-none stroke-slate-300 dark:stroke-slate-700"
+            strokeWidth="1.5"
+          >
+            <polygon
+              points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <p className="mb-1 text-base font-semibold text-slate-700 dark:text-slate-300">
+            Aucun favori pour l'instant
+          </p>
+          <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
+            Cliquez sur l'étoile dans la liste des marchés pour ajouter un actif à vos favoris.
+          </p>
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            Aller aux marchés
+          </Link>
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -231,7 +240,6 @@ export function AssetsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
-                  {/* Colonne ⭐ sans label */}
                   <th className="w-10 px-3 py-3" aria-label="Favoris" />
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     #
@@ -257,12 +265,11 @@ export function AssetsPage() {
                 </tr>
               </thead>
               <tbody>
-                {assets.map((asset, index) => (
-                  <AssetRow
+                {favorites.map((asset, index) => (
+                  <FavoriteRow
                     key={asset.symbol}
                     asset={asset}
                     rank={index + 1}
-                    isFavorite={isFavorite(asset.symbol)}
                     toggling={toggling}
                     onToggleFavorite={toggleFavorite}
                   />

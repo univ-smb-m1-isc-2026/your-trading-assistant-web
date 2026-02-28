@@ -1,5 +1,135 @@
 @import "tailwindcss";
 
+/*
+ * Dark mode : Tailwind CSS v4 utilise @custom-variant pour déclarer
+ * quand le sélecteur `dark:` s'active. Ici on utilise la stratégie
+ * "class" — le variant dark est actif quand <html> a la classe .dark.
+ *
+ * Pourquoi la stratégie "class" plutôt que "media" ?
+ *   → La stratégie "media" se base uniquement sur prefers-color-scheme.
+ *   On veut que l'utilisateur puisse choisir manuellement, d'où la
+ *   classe .dark pilotée par notre store Zustand (use-theme-store.ts).
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens — palette bleu moderne/vif.
+ *
+ * On définit les couleurs du thème ici pour pouvoir les référencer
+ * dans Tailwind via @theme. Les composants utilisent ensuite les
+ * classes Tailwind standard (bg-primary, text-surface, etc.).
+ */
 @theme {
-  --color-background: #030712;
+  /* Accent principal — bleu vif */
+  --color-primary: #2563eb;
+  --color-primary-hover: #3b82f6;
+  --color-primary-light: #dbeafe;
+
+  /* Accent secondaire */
+  --color-accent: #1d4ed8;
+
+  /* Variations marché */
+  --color-up: #22c55e;
+  --color-up-bg: #052e16;
+  --color-down: #ef4444;
+  --color-down-bg: #450a0a;
+}
+
+/*
+ * Styles globaux — on évite les styles inline et on centralise
+ * les resets et defaults ici.
+ */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 transition-colors duration-200;
+}
+
+/* En mode sombre, le body change de fond et de couleur de texte */
+.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+/*
+ * Scrollbar custom pour le thème sombre — optionnel mais donne
+ * un look plus "pro" cohérent avec le design.
+ */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/*
+ * Animation pour le hero de la landing page — gradient qui se déplace.
+ * Utilisé dans landing-page.tsx pour l'effet visuel du hero.
+ */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/*
+ * Animation fade-in pour les éléments de la landing page.
+ */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animate-fade-in-up-delay-1 {
+  animation: fade-in-up 0.6s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-delay-2 {
+  animation: fade-in-up 0.6s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+.animate-fade-in-up-delay-3 {
+  animation: fade-in-up 0.6s ease-out 0.6s forwards;
+  opacity: 0;
+}
+
+/*
+ * Glow / pulse pour le CTA de la landing page.
+ */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(37, 99, 235, 0.6); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
 }

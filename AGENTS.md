@@ -23,19 +23,22 @@ This document provides instructions and guidelines for agentic coding agents wor
 
 | Tool | Version | Role |
 |---|---|---|
-| React | 18+ | UI library |
-| Vite | 5+ | Build tool & dev server |
-| TypeScript | 5+ | Type safety across the codebase |
-| Tailwind CSS | 4+ | Utility-first styling |
-| React Router | 6+ | Client-side routing |
-| Zustand | 5+ | Global client-side state management |
-| Vitest | 1+ | Unit & integration test runner |
-| React Testing Library | 14+ | Component testing utilities |
-| clsx + tailwind-merge | latest | Conditional class name composition |
+| React | ^18.3 | UI library |
+| Vite | ^6.0 | Build tool & dev server |
+| TypeScript | ~5.6 | Type safety across the codebase |
+| Tailwind CSS | ^4.2 | Utility-first styling |
+| React Router DOM | ^7.13 | Client-side routing |
+| Zustand | ^5.0 | Global client-side state management |
+| lightweight-charts | ^5.1 | Candlestick / financial charts (TradingView) |
+| Vitest | ^4.0 | Unit & integration test runner |
+| React Testing Library | ^16.3 | Component testing utilities |
+| clsx + tailwind-merge | ^2.1 / ^3.5 | Conditional class name composition |
 
 > **Why Vite?** Vite uses native ES modules in development, giving near-instant hot module replacement (HMR). This is dramatically faster than Webpack-based setups for large React apps.
 
-> **Why React Router?** The app uses `BrowserRouter` (real URL paths) rather than hash-based routing. `BrowserRouter` is placed in `main.tsx` so every component in the tree has access to routing hooks (`useNavigate`, `useLocation`, `Link`).
+> **Why React Router v7?** The app uses `BrowserRouter` (real URL paths) rather than hash-based routing. `BrowserRouter` is placed in `main.tsx` so every component in the tree has access to routing hooks (`useNavigate`, `useLocation`, `Link`). Note: the installed version is v7, even though it is API-compatible with the v6 patterns described in this document.
+
+> **Why lightweight-charts?** It is the smallest production-grade candlestick library (≈58 kB gzip), Canvas-based (fast for large datasets), looks identical to TradingView charts, and is Apache-2.0 licensed. Alternatives evaluated: recharts (no candlestick), react-financial-charts (abandoned), react-apexcharts (dual license).
 
 ---
 
@@ -43,20 +46,24 @@ This document provides instructions and guidelines for agentic coding agents wor
 
 ```
 src/
-├── assets/          # Static files: images, fonts, SVGs
-├── components/      # Shared, reusable UI components (not feature-specific)
-│   ├── ui/          # Low-level primitives (Button, Card, Input...)
-│   └── protected-route.tsx  # Route guard — redirects to /login if no JWT
-├── features/        # Feature-based modules (see Feature Anatomy below)
-│   └── auth/        # Authentication: login, register, JWT
-├── pages/           # Route-level pages not tied to a single feature
-├── services/        # All HTTP API calls (REST layer)
-├── stores/          # Zustand store definitions
-├── types/           # Global TypeScript types and interfaces
-└── utils/           # Pure utility functions (formatting, math...)
+├── assets/              # Static files: images, fonts, SVGs
+├── components/          # Shared, reusable UI components (not feature-specific)
+│   ├── ui/
+│   │   └── candlestick-chart.tsx  # React wrapper for lightweight-charts
+│   └── protected-route.tsx        # Route guard — redirects to /login if no JWT
+├── features/            # Feature-based modules (see Feature Anatomy below)
+│   ├── auth/            # Authentication: login, register, JWT
+│   └── market/          # Market data: asset list, candlestick detail page
+├── pages/               # ⚠️ Legacy — contains orphaned dashboard-page.tsx (unused)
+├── services/            # All HTTP API calls (REST layer)
+├── stores/              # Zustand store definitions
+├── types/               # Global TypeScript types and interfaces
+└── utils/               # Pure utility functions (formatting, math...)
 ```
 
 > **Why feature-based structure?** Co-locating everything related to a feature (components, hooks, pages) inside its own folder makes it easy to find, modify, and eventually delete code. It scales better than organizing by technical role alone (e.g., a flat `components/` folder that grows to 100+ files).
+
+> **`pages/` is legacy.** The `src/pages/dashboard-page.tsx` file is orphaned: it is no longer referenced in `App.tsx`. New pages must be created inside the appropriate `src/features/<name>/pages/` folder, never in `src/pages/`.
 
 ---
 
@@ -73,6 +80,15 @@ features/auth/
 │   ├── login-page.tsx
 │   └── register-page.tsx
 └── index.ts         # Barrel — public API of the feature
+
+features/market/
+├── hooks/
+│   ├── use-assets.ts    # Fetch + sort asset list (available first, null last)
+│   └── use-candles.ts   # Fetch OHLCV candles for a given symbol
+├── pages/
+│   ├── assets-page.tsx       # Grid of asset cards → navigates to /assets/:symbol
+│   └── asset-detail-page.tsx # Candlestick chart + back button
+└── index.ts
 ```
 
 **Rules:**
@@ -85,14 +101,15 @@ features/auth/
 
 ## Routing
 
-Routes are defined in `src/App.tsx` using React Router v6 `<Routes>` and `<Route>`.
+Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
 
 ```
-/           → redirect to /login
-/login      → LoginPage     (public)
-/register   → RegisterPage  (public)
-/dashboard  → DashboardPage (protected — requires JWT)
-*           → redirect to /login
+/                  → redirect to /login
+/login             → LoginPage        (public)
+/register          → RegisterPage     (public)
+/dashboard         → AssetsPage       (protected — requires JWT)
+/assets/:symbol    → AssetDetailPage  (protected — requires JWT)
+*                  → redirect to /login
 ```
 
 **Protected routes** are wrapped with `<ProtectedRoute>` (`src/components/protected-route.tsx`), which reads the token from `useAuthStore` and redirects to `/login` if absent.
@@ -100,11 +117,12 @@ Routes are defined in `src/App.tsx` using React Router v6 `<Routes>` and `<Route
 ```tsx
 // App.tsx pattern
 <Route element={<ProtectedRoute />}>
-  <Route path="/dashboard" element={<DashboardPage />} />
+  <Route path="/dashboard" element={<AssetsPage />} />
+  <Route path="/assets/:symbol" element={<AssetDetailPage />} />
 </Route>
 ```
 
-> **Why `<ProtectedRoute>` in `components/` and not in `features/auth/`?** It is routing infrastructure, not auth UI. It will guard any future protected route (market, portfolio…), making it a shared concern.
+> **Why `<ProtectedRoute>` in `components/` and not in `features/auth/`?** It is routing infrastructure, not auth UI. It guards any protected route regardless of feature, making it a shared concern.
 
 ---
 
@@ -136,28 +154,44 @@ The app uses JWT tokens issued by the backend on `POST /auth/register` and `POST
 
 ### TypeScript
 - **Strict mode is mandatory.** `tsconfig.json` must include `"strict": true`.
+- `tsconfig.app.json` also enables `noUnusedLocals` and `noUnusedParameters` — any unused import or variable is a **build error**.
 - Always type component props with a named `interface`, not `type` aliases or inline objects.
 - Always type hook return values with a named `interface` (e.g., `UseLoginReturn`).
 - Never use `any`. Use `unknown` and narrow types explicitly when needed.
 - API response shapes must be typed in `src/types/api.ts` and reused across services and components.
 
 ### Naming
-- **Components:** PascalCase (`MarketChart`, `PortfolioSummary`)
-- **Files:** kebab-case matching the default export (`market-chart.tsx`, `portfolio-summary.tsx`)
-- **Hooks:** camelCase prefixed with `use` (`useLogin`, `useMarketData`)
-- **Stores:** camelCase prefixed with `use` (`useAuthStore`, `useMarketStore`)
+- **Components:** PascalCase (`CandlestickChart`, `AssetCard`)
+- **Files:** kebab-case matching the default export (`candlestick-chart.tsx`, `assets-page.tsx`)
+- **Hooks:** camelCase prefixed with `use` (`useAssets`, `useCandles`)
+- **Stores:** camelCase prefixed with `use` (`useAuthStore`)
 - **Services:** camelCase, noun-based (`authService`, `marketService`)
 
 ### Imports
 - Use the `@/` alias for all imports that cross feature or module boundaries.
-- Use **relative paths** (`../hooks/use-login`) only for imports within the same feature folder.
+- Use **relative paths** (`../hooks/use-assets`) only for imports within the same feature folder.
 - Always import from the feature barrel, never from internal paths:
   ```ts
   // Good
-  import { LoginPage } from '@/features/auth'
+  import { AssetsPage } from '@/features/market'
 
   // Bad — breaks encapsulation
-  import { LoginPage } from '@/features/auth/pages/login-page'
+  import { AssetsPage } from '@/features/market/pages/assets-page'
+  ```
+
+### Async / Promises
+- Never leave floating promises. Use `void fetchFn()` inside `useEffect` to satisfy `no-floating-promises`.
+- Always use a `cancelled` flag in `useEffect` data-fetching hooks to prevent `setState` on unmounted components:
+  ```ts
+  useEffect(() => {
+    let cancelled = false
+    async function fetch() {
+      const data = await getAssets()
+      if (!cancelled) setAssets(data)
+    }
+    void fetch()
+    return () => { cancelled = true }
+  }, [])
   ```
 
 ### Exports
@@ -174,13 +208,11 @@ The app uses JWT tokens issued by the backend on `POST /auth/register` and `POST
 
 ```tsx
 // Good
-interface MarketTickerProps {
-  symbol: string;
-  price: number;
-  change: number;
+interface AssetCardProps {
+  asset: Asset
 }
 
-export function MarketTicker({ symbol, price, change }: MarketTickerProps) { ... }
+export function AssetCard({ asset }: AssetCardProps) { ... }
 ```
 
 - **Avoid prop drilling beyond 2 levels.** If data needs to pass through more than two components, lift it to a Zustand store or use a context.
@@ -194,7 +226,12 @@ All global application state lives in Zustand stores under `src/stores/`. Each s
 
 ```
 stores/
-├── use-auth-store.ts        # JWT token, setToken, logout
+└── use-auth-store.ts   # JWT token, setToken, logout  ← implemented
+```
+
+Planned stores (not yet created):
+```
+stores/
 ├── use-market-store.ts      # Live prices, selected symbols, market status
 ├── use-portfolio-store.ts   # User positions, P&L, account balance
 └── use-assistant-store.ts   # Chat history, loading state for AI responses
@@ -222,7 +259,7 @@ import { cn } from '@/utils/cn'
 <div className={cn('rounded px-4 py-2', isActive && 'bg-blue-600 text-white')} />
 ```
 
-- **No inline `style` props** unless animating dynamic numeric values (e.g., a chart's height in pixels) that cannot be expressed with Tailwind.
+- **No inline `style` props** unless animating dynamic numeric values (e.g., a chart height in pixels) that cannot be expressed with Tailwind.
 - Define design tokens (colors, spacing, fonts) in `tailwind.config.ts` under the `theme.extend` key, not as hardcoded values in class names.
 
 ---
@@ -235,13 +272,67 @@ All HTTP communication is centralized in `src/services/`. Components and stores 
 services/
 ├── api-client.ts        # Base HTTP client: base URL, JWT injection, error handling
 ├── auth-service.ts      # POST /auth/login, POST /auth/register
-├── market-service.ts    # GET /market/prices, GET /market/history, etc.
-└── portfolio-service.ts # GET /portfolio, POST /portfolio/trade, etc.
+├── hello-service.ts     # GET /hello (health check / demo)
+└── market-service.ts    # GET /assets, GET /assets/{symbol}/candles
 ```
 
-- `api-client.ts` wraps `fetch` and handles: base URL (from `VITE_API_BASE_URL`), attaching the JWT `Authorization: Bearer` header on every request, and throwing typed errors on non-2xx responses.
+### Implemented API endpoints
+
+| Method | Path | Auth | Service function |
+|---|---|---|---|
+| `POST` | `/auth/login` | No | `authService.login()` |
+| `POST` | `/auth/register` | No | `authService.register()` |
+| `GET` | `/assets` | JWT | `getAssets()` |
+| `GET` | `/assets/{symbol}/candles` | JWT | `getCandles(symbol)` |
+
+### API response shapes
+
+```ts
+// GET /assets
+Asset[]  →  { symbol: string, lastPrice: number | null, lastDate: string | null }
+
+// GET /assets/{symbol}/candles
+Candle[] →  { date: string, open: number, high: number, low: number, close: number, volume: number }
+
+// Error (e.g. 404)
+AssetError → { error: string, symbol: string }
+```
+
+- `api-client.ts` wraps `fetch` and handles: base URL (from `VITE_API_BASE_URL`), attaching the JWT `Authorization: Bearer` header on every request, and throwing a typed `Error` on non-2xx responses.
 - All service functions must return typed data. Define response interfaces in `src/types/api.ts`.
-- Handle loading and error states explicitly; never silently swallow errors.
+- Handle loading and error states explicitly in hooks; never silently swallow errors.
 
+---
 
-- Aim for high coverage on `services/` and `stores/` (pure logic), and behavioral coverage on key user flows in `features/`.
+## Charts (lightweight-charts)
+
+Financial charts use `lightweight-charts` v5 (TradingView). The library is vanilla JS and operates directly on a DOM node — it must be wrapped in a React component using `useRef` + `useEffect`.
+
+### Pattern: `CandlestickChart` component (`src/components/ui/candlestick-chart.tsx`)
+
+```tsx
+// 1. Get a ref to the container div
+const containerRef = useRef<HTMLDivElement>(null)
+
+useEffect(() => {
+  if (!containerRef.current) return
+
+  // 2. Create the chart instance on the DOM node
+  const chart = createChart(containerRef.current, { ... })
+
+  // 3. Add a series using the v5 API (series definition object, not method name)
+  const series = chart.addSeries(CandlestickSeries, { ... })
+
+  // 4. Feed data — lightweight-charts expects { time: "YYYY-MM-DD", open, high, low, close }
+  series.setData(candles.map(c => ({ time: c.date, ... })))
+
+  // 5. MANDATORY cleanup — removes the canvas and all DOM listeners
+  return () => { chart.remove() }
+}, [candles])
+```
+
+**Key points:**
+- `chart.remove()` in the cleanup is not optional. Without it, every re-render leaks a canvas element and event listeners.
+- v5 uses `chart.addSeries(CandlestickSeries, options)` — the old v4 method `chart.addCandlestickSeries()` no longer exists.
+- `lightweight-charts` expects the `time` field typed as a branded string `` `${number}-${number}-${number}` `` — cast `c.date` explicitly to satisfy TypeScript strict mode.
+- The library is ESM-only; it works with Vite out of the box, but cannot be `require()`'d in Node.js scripts.

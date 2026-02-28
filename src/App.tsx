@@ -2,47 +2,61 @@
  * Définition des routes de l'application.
  *
  * Arborescence :
- *   /                    → redirige vers /login
+ *   /                    → LandingPage (publique — présentation de l'app)
  *   /login               → LoginPage (publique)
  *   /register            → RegisterPage (publique)
- *   /dashboard           → AssetsPage (protégée — liste des marchés)
- *   /assets/:symbol      → AssetDetailPage (protégée — graphique candlestick)
- *   *                    → redirige vers /login
+ *   /dashboard           → AssetsPage (protégée — dans AppLayout)
+ *   /favorites           → FavoritesPage (protégée — dans AppLayout)
+ *   /assets/:symbol      → AssetDetailPage (protégée — dans AppLayout)
+ *   *                    → redirige vers /
  *
- * Pourquoi <Routes> + <Route> et non une config objet (useRoutes) ?
- *   → La syntaxe JSX est plus lisible pour un projet de cette taille.
- *   useRoutes() est préférable quand les routes sont chargées dynamiquement
- *   ou générées depuis une source externe (CMS, permissions API, etc.).
+ * Architecture des routes protégées :
+ *   Les routes protégées sont imbriquées dans deux layers :
+ *   1. ProtectedRoute — vérifie le JWT, redirige vers /login si absent
+ *   2. AppLayout — fournit le layout (sidebar + topbar + Outlet)
  *
- * Pourquoi <Navigate replace> sur "/" ?
- *   → L'application n'a pas de page d'accueil distincte pour l'instant.
- *   On choisit de rediriger vers /login plutôt que de dupliquer du contenu.
- *   `replace` évite d'empiler "/" dans l'historique du navigateur.
+ *   L'imbrication est :
+ *     <Route element={<ProtectedRoute />}>     ← garde d'accès
+ *       <Route element={<AppLayout />}>         ← layout visuel
+ *         <Route path="/dashboard" ... />        ← contenu dans <main>
+ *       </Route>
+ *     </Route>
+ *
+ *   Pourquoi séparer ProtectedRoute et AppLayout ?
+ *   → ProtectedRoute = sécurité. AppLayout = UI. L'un pourrait exister
+ *   sans l'autre (ex: une page protégée sans sidebar, ou un layout
+ *   pour des pages publiques). Cette séparation respecte le Single
+ *   Responsibility Principle.
  */
 
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage, RegisterPage } from '@/features/auth'
-import { AssetsPage, AssetDetailPage } from '@/features/market'
+import { LandingPage } from '@/features/landing'
+import { AssetsPage, AssetDetailPage, FavoritesPage } from '@/features/market'
 import { ProtectedRoute } from '@/components/protected-route'
+import { AppLayout } from '@/components/layout/app-layout'
 
 export function App() {
   return (
     <Routes>
-      {/* Racine : redirige immédiatement vers /login */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Racine : landing page publique */}
+      <Route path="/" element={<LandingPage />} />
 
       {/* Routes publiques */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 
-      {/* Routes protégées : ProtectedRoute vérifie le JWT avant de rendre <Outlet /> */}
+      {/* Routes protégées avec layout (sidebar + topbar) */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<AssetsPage />} />
-        <Route path="/assets/:symbol" element={<AssetDetailPage />} />
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<AssetsPage />} />
+          <Route path="/assets/:symbol" element={<AssetDetailPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+        </Route>
       </Route>
 
-      {/* Fallback : toute URL inconnue → /login */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Fallback : toute URL inconnue → landing */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
