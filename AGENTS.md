@@ -48,12 +48,18 @@ This document provides instructions and guidelines for agentic coding agents wor
 src/
 ├── assets/              # Static files: images, fonts, SVGs
 ├── components/          # Shared, reusable UI components (not feature-specific)
+│   ├── layout/
+│   │   ├── app-layout.tsx         # Shell: TopNavbar + Sidebar + <Outlet /> + SessionExpiredModal
+│   │   ├── sidebar.tsx            # Left nav: Dashboard, Favoris links
+│   │   └── top-navbar.tsx         # Top bar: logo, theme toggle, logout
 │   ├── ui/
-│   │   └── candlestick-chart.tsx  # React wrapper for lightweight-charts
+│   │   ├── candlestick-chart.tsx  # React wrapper for lightweight-charts
+│   │   └── session-expired-modal.tsx  # 403 modal: logout or dismiss
 │   └── protected-route.tsx        # Route guard — redirects to /login if no JWT
 ├── features/            # Feature-based modules (see Feature Anatomy below)
 │   ├── auth/            # Authentication: login, register, JWT
-│   └── market/          # Market data: asset list, candlestick detail page
+│   ├── landing/         # Public landing page (pre-login)
+│   └── market/          # Market data: asset list, favorites, candlestick detail
 ├── pages/               # ⚠️ Legacy — contains orphaned dashboard-page.tsx (unused)
 ├── services/            # All HTTP API calls (REST layer)
 ├── stores/              # Zustand store definitions
@@ -81,13 +87,21 @@ features/auth/
 │   └── register-page.tsx
 └── index.ts         # Barrel — public API of the feature
 
+features/landing/
+├── pages/
+│   └── landing-page.tsx   # Public marketing/entry page
+└── index.ts
+
 features/market/
 ├── hooks/
-│   ├── use-assets.ts    # Fetch + sort asset list (available first, null last)
-│   └── use-candles.ts   # Fetch OHLCV candles for a given symbol
+│   ├── use-assets.ts          # Fetch + sort asset list (available first, null last)
+│   ├── use-candles.ts         # Fetch OHLCV candles for a given symbol
+│   ├── use-favorites.ts       # Read/toggle favorites via REST + useFavoritesStore
+│   └── use-moving-averages.ts # Fetch SMA/EMA series, refetch on type/periods change
 ├── pages/
-│   ├── assets-page.tsx       # Grid of asset cards → navigates to /assets/:symbol
-│   └── asset-detail-page.tsx # Candlestick chart + back button
+│   ├── assets-page.tsx        # Binance-style table of assets with star column
+│   ├── asset-detail-page.tsx  # Candlestick chart + MA controls bar
+│   └── favorites-page.tsx     # Filtered table of starred assets
 └── index.ts
 ```
 
@@ -109,16 +123,20 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
 /register          → RegisterPage     (public)
 /dashboard         → AssetsPage       (protected — requires JWT)
 /assets/:symbol    → AssetDetailPage  (protected — requires JWT)
+/favorites         → FavoritesPage    (protected — requires JWT)
 *                  → redirect to /login
 ```
 
-**Protected routes** are wrapped with `<ProtectedRoute>` (`src/components/protected-route.tsx`), which reads the token from `useAuthStore` and redirects to `/login` if absent.
+**Protected routes** are wrapped with `<ProtectedRoute>` (`src/components/protected-route.tsx`), which reads the token from `useAuthStore` and redirects to `/login` if absent. `AppLayout` is nested inside `ProtectedRoute` and renders via `<Outlet />`.
 
 ```tsx
 // App.tsx pattern
 <Route element={<ProtectedRoute />}>
-  <Route path="/dashboard" element={<AssetsPage />} />
-  <Route path="/assets/:symbol" element={<AssetDetailPage />} />
+  <Route element={<AppLayout />}>
+    <Route path="/dashboard" element={<AssetsPage />} />
+    <Route path="/assets/:symbol" element={<AssetDetailPage />} />
+    <Route path="/favorites" element={<FavoritesPage />} />
+  </Route>
 </Route>
 ```
 
@@ -138,7 +156,7 @@ The app uses JWT tokens issued by the backend on `POST /auth/register` and `POST
 | Store token | `useAuthStore.setToken(token)` → Zustand + `localStorage` |
 | Attach to requests | `api-client.ts` reads `localStorage['auth_token']` on every `request()` call |
 | Read in components | `useAuthStore(s => s.token)` |
-| Logout | `useAuthStore.logout()` → clears Zustand + `localStorage` |
+| Logout | `useAuthStore.logout()` → clears Zustand + `localStorage` + resets favorites |
 
 ### Why `localStorage` for the token?
 
@@ -147,6 +165,40 @@ The app uses JWT tokens issued by the backend on `POST /auth/register` and `POST
 ### Why does `api-client.ts` read `localStorage` directly instead of the Zustand store?
 
 `api-client.ts` is a plain TypeScript module (no React). Importing `useAuthStore` would couple the network layer to the UI layer and could cause circular dependency issues. Since the Zustand store is always initialized from `localStorage`, both are in sync.
+
+**Exception:** on HTTP 403, `api-client.ts` calls `useAuthStore.getState().setSessionExpired(true)` to trigger the session-expired modal. `getState()` is the Zustand escape hatch for non-React contexts and does not create a subscription.
+
+### Session expiry (HTTP 403)
+
+When the backend returns 403, `api-client.ts` sets `sessionExpired: true` in `useAuthStore`. `AppLayout` renders a `<SessionExpiredModal>` when this flag is true. The modal offers:
+- **Se déconnecter** — calls `logout()` and navigates to `/login`
+- **Ignorer** — calls `setSessionExpired(false)` to dismiss
+
+The 403 check happens **before** the generic `!res.ok` throw so the modal always fires even if the caller does not catch errors.
+
+---
+
+## Theming (Dark / Light)
+
+Theme state lives in `src/stores/use-theme-store.ts`. It persists the user's preference in `localStorage` under the key `theme`. Default: system preference via `window.matchMedia('(prefers-color-scheme: dark)')`.
+
+### How dark mode works with Tailwind CSS v4
+
+Tailwind v4 does **not** use `tailwind.config.ts` for the dark variant. Instead, `src/index.css` declares:
+
+```css
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+This makes every `dark:` utility class apply whenever a `.dark` class is present on any ancestor element. The theme store toggles this class on `<html>` (`document.documentElement`).
+
+### Anti-FOUC script
+
+`index.html` includes an inline `<script>` before the React bundle that reads `localStorage.theme` and immediately applies `.dark` to `<html>` if needed. This prevents a Flash Of Unstyled Content (FOUC) where the page briefly renders in the wrong theme while JS loads.
+
+### lightweight-charts and theming
+
+`lightweight-charts` is vanilla JS and ignores CSS classes entirely. Theme colors are passed directly to `createChart()` as configuration. The `useEffect` in `CandlestickChart` depends on `theme` — when the user toggles, the chart is destroyed and recreated with the correct palette.
 
 ---
 
@@ -226,7 +278,9 @@ All global application state lives in Zustand stores under `src/stores/`. Each s
 
 ```
 stores/
-└── use-auth-store.ts   # JWT token, setToken, logout  ← implemented
+├── use-auth-store.ts       # JWT token, setToken, logout, sessionExpired flag
+├── use-theme-store.ts      # 'light' | 'dark' theme, persisted in localStorage
+└── use-favorites-store.ts  # Cached favorite symbols, loaded flag
 ```
 
 Planned stores (not yet created):
@@ -242,6 +296,10 @@ stores/
 - Use slice-based selectors to avoid unnecessary re-renders: `const token = useAuthStore(s => s.token)`.
 - Actions (functions that mutate state) must be defined inside the store, not in components.
 - If a store needs to persist data across reloads, sync with `localStorage` inside the store's actions (see `use-auth-store.ts` for the pattern).
+
+### Favorites store — `loaded` flag pattern
+
+`useFavoritesStore` has a `loaded: boolean` flag. The `useFavorites` hook checks this flag before fetching — if already loaded, it skips the API call. This prevents double-fetching when the user navigates between `AssetsPage` and `FavoritesPage`. The flag is reset to `false` on logout so fresh data is fetched on the next login.
 
 > **Why Zustand?** It is minimal (~1kb), does not require a Provider wrapper, and its API is just plain JavaScript objects and functions — making it very easy to understand and test compared to Redux.
 
@@ -259,8 +317,11 @@ import { cn } from '@/utils/cn'
 <div className={cn('rounded px-4 py-2', isActive && 'bg-blue-600 text-white')} />
 ```
 
-- **No inline `style` props** unless animating dynamic numeric values (e.g., a chart height in pixels) that cannot be expressed with Tailwind.
-- Define design tokens (colors, spacing, fonts) in `tailwind.config.ts` under the `theme.extend` key, not as hardcoded values in class names.
+- **Tailwind v4 dark mode** uses `@custom-variant dark (&:where(.dark, .dark *))` in `src/index.css`. There is **no** `tailwind.config.ts` for this — it would not work.
+- Design tokens (primary color, background, border colors) are defined as CSS custom properties in `src/index.css` inside `:root` and `.dark` blocks, not in a Tailwind config file.
+- **No inline `style` props** unless the value is dynamic and cannot be expressed as a Tailwind class (e.g., a hex color from a data-driven palette). Exception: `backgroundColor` on MA period badges, where the color is a runtime hex string.
+- **No icon libraries.** All icons are inline SVG with `viewBox`, `fill`, and `stroke` props.
+- **CSS-only animations.** Use Tailwind's `animate-spin`, `animate-pulse`, etc. Do not add Framer Motion.
 
 ---
 
@@ -270,10 +331,12 @@ All HTTP communication is centralized in `src/services/`. Components and stores 
 
 ```
 services/
-├── api-client.ts        # Base HTTP client: base URL, JWT injection, error handling
+├── api-client.ts        # Base HTTP client: base URL, JWT injection, 403 detection, empty body handling
 ├── auth-service.ts      # POST /auth/login, POST /auth/register
 ├── hello-service.ts     # GET /hello (health check / demo)
-└── market-service.ts    # GET /assets, GET /assets/{symbol}/candles
+└── market-service.ts    # GET /assets, GET /assets/{symbol}/candles,
+                         # GET/POST/DELETE /favorites,
+                         # GET /assets/{symbol}/moving-averages
 ```
 
 ### Implemented API endpoints
@@ -284,6 +347,10 @@ services/
 | `POST` | `/auth/register` | No | `authService.register()` |
 | `GET` | `/assets` | JWT | `getAssets()` |
 | `GET` | `/assets/{symbol}/candles` | JWT | `getCandles(symbol)` |
+| `GET` | `/favorites` | JWT | `getFavorites()` |
+| `POST` | `/favorites/{symbol}` | JWT | `addFavorite(symbol)` |
+| `DELETE` | `/favorites/{symbol}` | JWT | `removeFavorite(symbol)` |
+| `GET` | `/assets/{symbol}/moving-averages` | JWT | `getMovingAverages(symbol, type, periods)` |
 
 ### API response shapes
 
@@ -294,11 +361,24 @@ Asset[]  →  { symbol: string, lastPrice: number | null, lastDate: string | nul
 // GET /assets/{symbol}/candles
 Candle[] →  { date: string, open: number, high: number, low: number, close: number, volume: number }
 
+// GET /favorites
+string[]  →  ["BTCUSDT", "ETHUSDT", ...]
+
+// POST /favorites/{symbol}  /  DELETE /favorites/{symbol}
+// Returns HTTP 200 with empty body — no JSON to parse
+
+// GET /assets/{symbol}/moving-averages?type=SMA&periods=20,50
+MovingAverageSeries[] → [{ type: "SMA", period: 20, values: [{ date, value }] }]
+
 // Error (e.g. 404)
 AssetError → { error: string, symbol: string }
 ```
 
-- `api-client.ts` wraps `fetch` and handles: base URL (from `VITE_API_BASE_URL`), attaching the JWT `Authorization: Bearer` header on every request, and throwing a typed `Error` on non-2xx responses.
+### Empty body responses
+
+`POST /favorites` and `DELETE /favorites` return 200 with an empty body. `api-client.ts` handles this by using `res.text()` and only calling `JSON.parse()` if the string is non-empty. Never use `res.json()` for endpoints that may return an empty body — it throws `Unexpected end of JSON input`.
+
+- `api-client.ts` wraps `fetch` and handles: base URL (from `VITE_API_BASE_URL`), attaching the JWT `Authorization: Bearer` header on every request, 403 detection (sets `sessionExpired` in auth store), and throwing a typed `Error` on non-2xx responses.
 - All service functions must return typed data. Define response interfaces in `src/types/api.ts`.
 - Handle loading and error states explicitly in hooks; never silently swallow errors.
 
@@ -320,19 +400,66 @@ useEffect(() => {
   // 2. Create the chart instance on the DOM node
   const chart = createChart(containerRef.current, { ... })
 
-  // 3. Add a series using the v5 API (series definition object, not method name)
+  // 3. Add a candlestick series using the v5 API
   const series = chart.addSeries(CandlestickSeries, { ... })
 
-  // 4. Feed data — lightweight-charts expects { time: "YYYY-MM-DD", open, high, low, close }
-  series.setData(candles.map(c => ({ time: c.date, ... })))
+  // 4. Add MA line series (one per active period)
+  const lineSeries = chart.addSeries(LineSeries, { color, lineWidth: 2 })
 
-  // 5. MANDATORY cleanup — removes the canvas and all DOM listeners
+  // 5. Feed data — lightweight-charts expects { time: "YYYY-MM-DD", ... }
+  series.setData(candles.map(c => ({ time: c.date as `${number}-${number}-${number}`, ... })))
+
+  // 6. Subscribe to crosshair for tooltip (direct DOM, NOT useState — fires at ~60fps)
+  chart.subscribeCrosshairMove((param) => { tooltipRef.current.innerHTML = ... })
+
+  // 7. MANDATORY cleanup — removes the canvas and all DOM listeners
   return () => { chart.remove() }
-}, [candles])
+}, [candles, theme, movingAverages])
 ```
 
 **Key points:**
 - `chart.remove()` in the cleanup is not optional. Without it, every re-render leaks a canvas element and event listeners.
-- v5 uses `chart.addSeries(CandlestickSeries, options)` — the old v4 method `chart.addCandlestickSeries()` no longer exists.
+- v5 uses `chart.addSeries(CandlestickSeries, options)` and `chart.addSeries(LineSeries, options)` — the old v4 methods (`addCandlestickSeries`, `addLineSeries`) no longer exist.
 - `lightweight-charts` expects the `time` field typed as a branded string `` `${number}-${number}-${number}` `` — cast `c.date` explicitly to satisfy TypeScript strict mode.
 - The library is ESM-only; it works with Vite out of the box, but cannot be `require()`'d in Node.js scripts.
+- `ISeriesApi<'Line'>` is the correct TypeScript type for a line series reference.
+
+### Crosshair tooltip — direct DOM manipulation
+
+The tooltip div is a `position: absolute` overlay on top of the canvas. It is controlled directly via `tooltipRef.current.innerHTML` and `.style` inside `subscribeCrosshairMove`, **not** via `useState`. Reason: the event fires at ~60fps; `setState` would trigger a full React re-render on every frame, causing visible jank. `pointer-events: none` on the tooltip div is mandatory so it does not absorb mouse events from the chart.
+
+### Moving average overlays
+
+`CandlestickChart` accepts an optional `movingAverages?: MovingAverageSeries[]` prop. Each entry produces one `LineSeries` overlay. Color assignment:
+
+- If `MovingAverageSeries.color` is set (by the parent), that color is used.
+- Otherwise, the chart falls back to `MA_COLORS[index]` where index is the position in the sorted-by-period array.
+
+**Always prefer passing `color` explicitly** from the parent (`asset-detail-page.tsx`) so that badge colors and line colors are guaranteed to match. The page uses `getColorForPeriod(period)` which maps 20→blue, 50→orange, 200→violet using the fixed `AVAILABLE_PERIODS` array — independent of which periods are currently active.
+
+MA values are also shown in the crosshair tooltip, grouped in a section below the OHLCV data.
+
+---
+
+## Favorites
+
+Favorites are managed via three REST endpoints (GET / POST / DELETE) and cached in `useFavoritesStore`.
+
+- `useFavorites` hook (inside `features/market/hooks/`) handles the full lifecycle: initial fetch, optimistic toggle, and error recovery.
+- The store's `loaded` flag prevents redundant API calls when navigating between `AssetsPage` and `FavoritesPage`.
+- On logout, `resetFavorites()` must be called (done in `top-navbar.tsx`) to clear the cache so the next user gets a fresh fetch.
+- The star icon in the assets table is an inline SVG that fills when the asset is favorited. Click triggers `toggleFavorite(symbol)` from the hook.
+
+---
+
+## Known Gotchas & Design Decisions
+
+| Topic | Decision | Why |
+|---|---|---|
+| Tailwind dark mode | `@custom-variant` in CSS, not `darkMode` in config | Tailwind v4 removed the JS config for this |
+| Empty body responses | `res.text()` + conditional `JSON.parse()` | `res.json()` throws on empty body |
+| 403 handling | `useAuthStore.getState()` in `api-client.ts` | No React context available in a plain TS module |
+| MA color consistency | Parent sets `MovingAverageSeries.color` | Decouples "which color per period" policy from the generic chart component |
+| Favorites cache | `loaded` flag in store | Avoids double-fetching on navigation |
+| Tooltip at 60fps | Direct DOM via ref, not `useState` | Prevents React re-render storms |
+| `periodsKey` in `useMovingAverages` | Serialize `periods[]` to string for `useEffect` deps | Array identity changes every render; string comparison is stable |
