@@ -36,7 +36,7 @@ export function LoginPage() {
           </Link>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white px-8 py-10 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-lg">
+        <div className="rounded-xl border border-slate-300 bg-white px-8 py-10 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:shadow-lg">
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
@@ -45,7 +45,7 @@ export function LoginPage() {
                 <path d="M7 16l4-8 4 4 4-8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <h1 className="text-sm font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <h1 className="text-sm font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
               Trading Assistant
             </h1>
           </div>
@@ -66,7 +66,7 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className={cn(
                   'rounded-lg border px-4 py-2.5 text-sm transition-colors',
-                  'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400',
+                  'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-500',
                   'dark:bg-slate-800 dark:text-white dark:border-slate-700 dark:placeholder-slate-500',
                   'focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none',
                 )}
@@ -87,7 +87,7 @@ export function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className={cn(
                   'rounded-lg border px-4 py-2.5 text-sm transition-colors',
-                  'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-400',
+                  'bg-slate-50 text-slate-900 border-slate-300 placeholder-slate-500',
                   'dark:bg-slate-800 dark:text-white dark:border-slate-700 dark:placeholder-slate-500',
                   'focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none',
                 )}
@@ -114,7 +114,7 @@ export function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-6 text-center text-sm text-slate-600 dark:text-slate-400">
             Pas encore de compte ?{' '}
             <Link to="/register" className="font-medium text-primary hover:text-primary-hover hover:underline">
               Créer un compte

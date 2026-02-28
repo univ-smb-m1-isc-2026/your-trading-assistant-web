@@ -29,13 +29,13 @@ interface FeatureCardProps {
 function FeatureCard({ icon, title, description, animationClass }: FeatureCardProps) {
   return (
     <div
-      className={`rounded-xl border border-slate-200 bg-white p-6 transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-primary/40 dark:hover:shadow-primary/10 ${animationClass}`}
+      className={`rounded-xl border border-slate-300 bg-white p-6 transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-primary/40 dark:hover:shadow-primary/10 ${animationClass}`}
     >
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">
         {icon}
       </div>
       <h3 className="mb-2 text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
-      <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+      <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">{description}</p>
     </div>
   )
 }
@@ -122,7 +122,7 @@ export function LandingPage() {
             , pas plus longtemps
           </h1>
 
-          <p className="animate-fade-in-up-delay-1 mx-auto mb-10 max-w-xl text-lg leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="animate-fade-in-up-delay-1 mx-auto mb-10 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
             Your Trading Assistant aide les traders à prendre des décisions éclairées.
             Visualisez les marchés, configurez des alertes et laissez notre algorithme
             vous guider pour demain.
@@ -151,7 +151,7 @@ export function LandingPage() {
           <h2 className="animate-fade-in-up mb-4 text-center text-2xl font-bold text-slate-900 dark:text-white lg:text-3xl">
             Tout ce qu'il faut pour trader sereinement
           </h2>
-          <p className="animate-fade-in-up-delay-1 mx-auto mb-12 max-w-lg text-center text-slate-500 dark:text-slate-400">
+          <p className="animate-fade-in-up-delay-1 mx-auto mb-12 max-w-lg text-center text-slate-600 dark:text-slate-400">
             Des outils pensés pour le trader qui veut des résultats sans y passer la journée.
           </p>
 
@@ -204,12 +204,12 @@ export function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 px-6 py-8 dark:border-slate-800">
+      <footer className="border-t border-slate-300 px-6 py-8 dark:border-slate-800">
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="text-sm text-slate-400 dark:text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-600">
             Your Trading Assistant — Projet INFO-803
           </p>
-          <p className="text-sm text-slate-400 dark:text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-600">
             Construit avec React, Vite et TypeScript
           </p>
         </div>

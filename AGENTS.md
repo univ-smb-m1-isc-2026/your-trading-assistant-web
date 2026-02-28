@@ -493,3 +493,6 @@ The search logic is 3 lines of code (state + trim + filter). Extracting a hook w
 | Tooltip at 60fps | Direct DOM via ref, not `useState` | Prevents React re-render storms |
 | `periodsKey` in `useMovingAverages` | Serialize `periods[]` to string for `useEffect` deps | Array identity changes every render; string comparison is stable |
 | Search filtering | Client-side `filter()` with local `useState` | All data already in memory; no backend search endpoint needed |
+| Light mode contrast | `text-slate-400` → `text-slate-600`, `border-slate-100/200` → `border-slate-200/300` | slate-400 (~3.0:1) fails WCAG AA; slate-600 (~5.5:1) passes. Borders upgraded one step for visibility on white bg. Dark mode classes untouched. |
+| Chart tooltip labelColor | `theme === 'dark' ? '#94a3b8' : '#64748b'` | Was accidentally swapped (light got lighter color). Fixed so light mode gets the darker hex for readable labels. |
+| Chart hex colors (light) | grid `#e2e8f0`, border `#cbd5e1`, tooltip border `#cbd5e1`, divider `#e2e8f0` | Upgraded from slate-100/200 to slate-200/300 equivalents for visible separation on white backgrounds. |

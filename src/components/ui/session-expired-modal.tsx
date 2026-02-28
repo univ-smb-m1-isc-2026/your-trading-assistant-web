@@ -54,7 +54,7 @@ export function SessionExpiredModal() {
       aria-modal="true"
       aria-labelledby="session-expired-title"
     >
-      <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-300 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
         {/* Icône d'avertissement */}
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
           <svg
@@ -83,7 +83,7 @@ export function SessionExpiredModal() {
         </h2>
 
         {/* Message */}
-        <p className="mb-6 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+        <p className="mb-6 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           Votre session n'est plus valide. Veuillez vous reconnecter pour continuer à utiliser l'application.
         </p>
 

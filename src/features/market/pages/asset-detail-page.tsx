@@ -157,7 +157,7 @@ export function AssetDetailPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{symbol}</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Graphique candlestick</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Graphique candlestick</p>
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ export function AssetDetailPage() {
         <div className="flex items-center justify-center py-24">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-700 dark:border-t-primary" />
-            <p className="text-sm text-slate-500 dark:text-slate-400">Chargement du graphique...</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Chargement du graphique...</p>
           </div>
         </div>
       )}
@@ -183,17 +183,17 @@ export function AssetDetailPage() {
       )}
 
       {!loading && !error && candles.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="rounded-xl border border-slate-300 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Aucune donnée de bougie disponible pour {symbol}.
           </p>
         </div>
       )}
 
       {!loading && !error && candles.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+        <div className="rounded-xl border border-slate-300 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               {candles.length} bougies — de{' '}
               <span className="font-medium text-slate-700 dark:text-slate-200">{candles[0].date}</span> à{' '}
               <span className="font-medium text-slate-700 dark:text-slate-200">{candles[candles.length - 1].date}</span>
@@ -207,7 +207,7 @@ export function AssetDetailPage() {
             ──────────────────────────────────────────────────────────────── */}
           <div className="mb-3 flex flex-wrap items-center gap-3">
             {/* Sélecteur SMA / EMA */}
-            <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
               {(['SMA', 'EMA'] as const).map((t) => (
                 <button
                   key={t}
@@ -225,7 +225,7 @@ export function AssetDetailPage() {
             </div>
 
             {/* Séparateur vertical */}
-            <div className="h-6 w-px bg-slate-200 dark:bg-slate-700" />
+            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
 
             {/* Badges de périodes */}
             {AVAILABLE_PERIODS.map((period) => {
@@ -240,7 +240,7 @@ export function AssetDetailPage() {
                     'rounded-md px-2.5 py-1 text-xs font-bold tabular-nums transition-colors',
                     isActive
                       ? 'text-white'
-                      : 'bg-slate-100 text-slate-400 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700',
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700',
                   )}
                   style={isActive ? { backgroundColor: color } : undefined}
                 >

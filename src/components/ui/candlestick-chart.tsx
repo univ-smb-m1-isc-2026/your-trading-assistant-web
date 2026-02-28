@@ -67,8 +67,8 @@ function getChartColors(theme: 'light' | 'dark') {
   return {
     background: '#ffffff',
     text: '#64748b',
-    grid: '#f1f5f9',
-    border: '#e2e8f0',
+    grid: '#e2e8f0',
+    border: '#cbd5e1',
   }
 }
 
@@ -139,10 +139,10 @@ function buildTooltipHtml(
   const closeColor = isUp ? upColor : downColor
   const variationColor = isUp ? upColor : downColor
 
-  const labelColor = theme === 'dark' ? '#64748b' : '#94a3b8'
+  const labelColor = theme === 'dark' ? '#94a3b8' : '#64748b'
   const valueColor = theme === 'dark' ? '#f1f5f9' : '#0f172a'
   const dateColor = theme === 'dark' ? '#cbd5e1' : '#334155'
-  const dividerColor = theme === 'dark' ? '#1e293b' : '#f1f5f9'
+  const dividerColor = theme === 'dark' ? '#1e293b' : '#e2e8f0'
 
   const row = (label: string, value: string, color: string) =>
     `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0;">
@@ -384,7 +384,7 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [] }:
     zIndex: 10,
     minWidth: '175px',
     borderRadius: '8px',
-    border: `1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'}`,
+    border: `1px solid ${theme === 'dark' ? '#334155' : '#cbd5e1'}`,
     backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
     boxShadow: theme === 'dark'
       ? '0 4px 20px rgba(0,0,0,0.5)'

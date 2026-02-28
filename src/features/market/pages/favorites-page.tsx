@@ -35,7 +35,7 @@ function StarIcon({ filled }: { filled: boolean }) {
         'h-4 w-4 transition-colors',
         filled
           ? 'fill-amber-400 stroke-amber-400'
-          : 'fill-none stroke-slate-300 dark:stroke-slate-600',
+          : 'fill-none stroke-slate-500 dark:stroke-slate-600',
       )}
       strokeWidth="2"
     >
@@ -74,7 +74,7 @@ function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowPro
   return (
     <tr
       className={cn(
-        'border-b border-slate-100 transition-colors dark:border-slate-800',
+        'border-b border-slate-200 transition-colors dark:border-slate-800',
         isAvailable
           ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50'
           : 'opacity-50',
@@ -101,7 +101,7 @@ function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowPro
       {/* Rang */}
       <td
         onClick={handleRowClick}
-        className="px-4 py-3 text-sm text-slate-400 dark:text-slate-500"
+        className="px-4 py-3 text-sm text-slate-600 dark:text-slate-500"
       >
         {rank}
       </td>
@@ -125,14 +125,14 @@ function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowPro
             ${asset.lastPrice!.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         ) : (
-          <span className="text-slate-400 dark:text-slate-500">—</span>
+          <span className="text-slate-600 dark:text-slate-500">—</span>
         )}
       </td>
 
       {/* Variation 24h — placeholder */}
       <td
         onClick={handleRowClick}
-        className="px-4 py-3 text-right text-sm text-slate-400 dark:text-slate-500"
+        className="px-4 py-3 text-right text-sm text-slate-600 dark:text-slate-500"
       >
         —
       </td>
@@ -140,7 +140,7 @@ function FavoriteRow({ asset, rank, toggling, onToggleFavorite }: FavoriteRowPro
       {/* Dernière MAJ */}
       <td
         onClick={handleRowClick}
-        className="hidden px-4 py-3 text-right text-sm text-slate-500 dark:text-slate-400 md:table-cell"
+        className="hidden px-4 py-3 text-right text-sm text-slate-600 dark:text-slate-400 md:table-cell"
       >
         {asset.lastDate
           ? new Date(asset.lastDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
@@ -190,7 +190,7 @@ export function FavoritesPage() {
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-700 dark:border-t-primary" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">Chargement des favoris...</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Chargement des favoris...</p>
         </div>
       </div>
     )
@@ -212,7 +212,7 @@ export function FavoritesPage() {
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Favoris</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             {favorites.length} actif{favorites.length > 1 ? 's' : ''} en favori{favorites.length > 1 ? 's' : ''}
           </p>
         </div>
@@ -222,7 +222,7 @@ export function FavoritesPage() {
           <div className="relative">
             <svg
               viewBox="0 0 24 24"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-slate-400 dark:stroke-slate-500"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-slate-500 dark:stroke-slate-500"
               fill="none"
               strokeWidth="2"
               strokeLinecap="round"
@@ -236,7 +236,7 @@ export function FavoritesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un favori..."
-              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary sm:w-64"
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary sm:w-64"
             />
           </div>
         )}
@@ -259,7 +259,7 @@ export function FavoritesPage() {
           <p className="mb-1 text-base font-semibold text-slate-700 dark:text-slate-300">
             Aucun favori pour l'instant
           </p>
-          <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
             Cliquez sur l'étoile dans la liste des marchés pour ajouter un actif à vos favoris.
           </p>
           <Link
@@ -271,37 +271,37 @@ export function FavoritesPage() {
         </div>
       ) : filteredFavorites.length === 0 ? (
         /* Aucun résultat pour la recherche */
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="rounded-xl border border-slate-300 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             Aucun favori ne correspond à <span className="font-semibold text-slate-700 dark:text-slate-300">« {search} »</span>
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="overflow-hidden rounded-xl border border-slate-300 bg-white dark:border-slate-800 dark:bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
+                <tr className="border-b border-slate-300 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50">
                   <th className="w-10 px-3 py-3" aria-label="Favoris" />
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     #
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Actif
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Dernier Prix
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     24h %
                   </th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 md:table-cell">
+                  <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 md:table-cell">
                     Dernière MAJ
                   </th>
-                  <th className="hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 lg:table-cell">
+                  <th className="hidden px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 lg:table-cell">
                     Statut
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                     Action
                   </th>
                 </tr>

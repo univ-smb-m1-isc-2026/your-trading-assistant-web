@@ -97,9 +97,9 @@ function IconBrain() {
 
 export function Sidebar() {
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-300 bg-white dark:border-slate-800 dark:bg-slate-900">
       <nav className="flex flex-1 flex-col gap-1 p-3">
-        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-500">
           Navigation
         </p>
         <SidebarItem to="/dashboard" label="Marchés" icon={<IconChart />} />
@@ -109,8 +109,8 @@ export function Sidebar() {
       </nav>
 
       {/* Footer sidebar — version */}
-      <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-        <p className="text-center text-[10px] text-slate-400 dark:text-slate-600">
+      <div className="border-t border-slate-300 p-3 dark:border-slate-800">
+        <p className="text-center text-[10px] text-slate-600 dark:text-slate-600">
           v0.1.0 — Beta
         </p>
       </div>
