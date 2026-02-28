@@ -18,6 +18,7 @@
 
 import { Link } from 'react-router-dom'
 import { useThemeStore } from '@/stores/use-theme-store'
+import { useAuthStore } from '@/stores/use-auth-store'
 
 interface FeatureCardProps {
   icon: React.ReactNode
@@ -43,6 +44,8 @@ function FeatureCard({ icon, title, description, animationClass }: FeatureCardPr
 export function LandingPage() {
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
+  const token = useAuthStore((s) => s.token)
+  const isLoggedIn = token !== null
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
@@ -79,18 +82,29 @@ export function LandingPage() {
             )}
           </button>
 
-          <Link
-            to="/login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          >
-            Se connecter
-          </Link>
-          <Link
-            to="/register"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
-          >
-            Créer un compte
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              to="/dashboard"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+            >
+              Accéder au dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              >
+                Se connecter
+              </Link>
+              <Link
+                to="/register"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
+              >
+                Créer un compte
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -129,18 +143,29 @@ export function LandingPage() {
           </p>
 
           <div className="animate-fade-in-up-delay-2 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link
-              to="/register"
-              className="animate-pulse-glow rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-hover hover:scale-105"
-            >
-              Créer un compte gratuitement
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-xl border border-slate-300 px-8 py-3.5 text-base font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-white"
-            >
-              Se connecter
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                to="/dashboard"
+                className="animate-pulse-glow rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-hover hover:scale-105"
+              >
+                Accéder au dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/register"
+                  className="animate-pulse-glow rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-white transition-all hover:bg-primary-hover hover:scale-105"
+                >
+                  Créer un compte gratuitement
+                </Link>
+                <Link
+                  to="/login"
+                  className="rounded-xl border border-slate-300 px-8 py-3.5 text-base font-medium text-slate-600 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-white"
+                >
+                  Se connecter
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -15,7 +15,7 @@
  * pour éviter une dépendance supplémentaire (lucide-react = ~200 kB).
  */
 
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/stores/use-theme-store'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { useFavoritesStore } from '@/stores/use-favorites-store'
@@ -39,8 +39,8 @@ export function TopNavbar() {
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-slate-300 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
-      {/* Logo */}
-      <div className="flex items-center gap-3">
+      {/* Logo — lien vers la landing page */}
+      <Link to="/" className="flex items-center gap-3">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
           <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" />
@@ -50,7 +50,7 @@ export function TopNavbar() {
         <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
           Your Trading Assistant
         </span>
-      </div>
+      </Link>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
