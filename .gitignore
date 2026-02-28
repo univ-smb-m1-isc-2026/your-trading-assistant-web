@@ -1,3 +1,6 @@
+
+.env.production
+
 # Dependencies
 node_modules/
 
@@ -7,7 +10,7 @@ dist/
 # Vite cache
 .vite/
 
-# Environment variables (ne jamais committer les vraies valeurs)
+# Environment variables 
 .env.local
 .env.*.local
 
