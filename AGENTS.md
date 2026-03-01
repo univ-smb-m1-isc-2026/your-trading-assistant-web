@@ -50,13 +50,14 @@ src/
 ├── components/          # Shared, reusable UI components (not feature-specific)
 │   ├── layout/
 │   │   ├── app-layout.tsx         # Shell: TopNavbar + Sidebar + <Outlet /> + SessionExpiredModal
-│   │   ├── sidebar.tsx            # Left nav: Dashboard, Favoris links
+│   │   ├── sidebar.tsx            # Left nav: Dashboard, Favoris, Alertes links
 │   │   └── top-navbar.tsx         # Top bar: logo, theme toggle, logout
 │   ├── ui/
 │   │   ├── candlestick-chart.tsx  # React wrapper for lightweight-charts
 │   │   └── session-expired-modal.tsx  # 403 modal: logout or dismiss
 │   └── protected-route.tsx        # Route guard — redirects to /login if no JWT
 ├── features/            # Feature-based modules (see Feature Anatomy below)
+│   ├── alerts/          # Alert system: create, edit, delete, history
 │   ├── auth/            # Authentication: login, register, JWT
 │   ├── landing/         # Public landing page (pre-login)
 │   └── market/          # Market data: asset list, favorites, candlestick detail
@@ -99,9 +100,23 @@ features/market/
 │   ├── use-favorites.ts       # Read/toggle favorites via REST + useFavoritesStore
 │   └── use-moving-averages.ts # Fetch SMA/EMA series, refetch on type/periods change
 ├── pages/
-│   ├── assets-page.tsx        # Binance-style table of assets with star column + search
-│   ├── asset-detail-page.tsx  # Candlestick chart + MA controls bar
+│   ├── assets-page.tsx        # Binance-style table + TodayAlertsBanner + search
+│   ├── asset-detail-page.tsx  # Candlestick chart + MA controls + alert sections
 │   └── favorites-page.tsx     # Filtered table of starred assets + search
+└── index.ts
+
+features/alerts/
+├── hooks/
+│   ├── use-alerts.ts          # Fetch GET /alerts + CRUD (create/update/delete)
+│   ├── use-triggered-alerts.ts # Fetch GET /alerts/triggered (history)
+│   └── use-asset-alerts.ts    # Filtered view by symbol (combines the two hooks)
+├── components/
+│   ├── alert-form.tsx         # Inline creation form (type, direction, threshold, recurring)
+│   ├── alert-card.tsx         # Active alert card: display + edit inline + delete (confirm)
+│   ├── triggered-alert-card.tsx # Triggered alert: vivid (today) or pastel (>1 day)
+│   └── today-alerts-banner.tsx  # Compact banner for dashboard (today's triggers only)
+├── pages/
+│   └── alerts-page.tsx        # /alerts: history (default) + management (gear toggle)
 └── index.ts
 ```
 
@@ -109,6 +124,7 @@ features/market/
 - Pages import hooks using **relative paths** within the feature (`../hooks/use-login`).
 - Code **outside** the feature always imports from the barrel: `import { LoginPage } from '@/features/auth'`. Never import from an internal path like `@/features/auth/pages/login-page`.
 - Hooks are internal details — only export from `index.ts` what external code needs.
+- Exception: `useAssetAlerts` is exported from `@/features/alerts` because it is consumed by `asset-detail-page.tsx` in the `market` feature.
 - If a feature grows, add `components/` and `types/` sub-folders following the same pattern.
 
 ---
@@ -118,13 +134,14 @@ features/market/
 Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
 
 ```
-/                  → redirect to /login
+/                  → LandingPage      (public)
 /login             → LoginPage        (public)
 /register          → RegisterPage     (public)
 /dashboard         → AssetsPage       (protected — requires JWT)
 /assets/:symbol    → AssetDetailPage  (protected — requires JWT)
 /favorites         → FavoritesPage    (protected — requires JWT)
-*                  → redirect to /login
+/alerts            → AlertsPage       (protected — requires JWT)
+*                  → redirect to /
 ```
 
 **Protected routes** are wrapped with `<ProtectedRoute>` (`src/components/protected-route.tsx`), which reads the token from `useAuthStore` and redirects to `/login` if absent. `AppLayout` is nested inside `ProtectedRoute` and renders via `<Outlet />`.
@@ -136,6 +153,7 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
     <Route path="/dashboard" element={<AssetsPage />} />
     <Route path="/assets/:symbol" element={<AssetDetailPage />} />
     <Route path="/favorites" element={<FavoritesPage />} />
+    <Route path="/alerts" element={<AlertsPage />} />
   </Route>
 </Route>
 ```
@@ -156,7 +174,7 @@ The app uses JWT tokens issued by the backend on `POST /auth/register` and `POST
 | Store token | `useAuthStore.setToken(token)` → Zustand + `localStorage` |
 | Attach to requests | `api-client.ts` reads `localStorage['auth_token']` on every `request()` call |
 | Read in components | `useAuthStore(s => s.token)` |
-| Logout | `useAuthStore.logout()` → clears Zustand + `localStorage` + resets favorites |
+| Logout | `useAuthStore.logout()` → clears Zustand + `localStorage` + resets favorites + resets alerts |
 
 ### Why `localStorage` for the token?
 
@@ -226,6 +244,7 @@ This makes every `dark:` utility class apply whenever a `.dark` class is present
   ```ts
   // Good
   import { AssetsPage } from '@/features/market'
+  import { AlertsPage, TodayAlertsBanner, useAssetAlerts } from '@/features/alerts'
 
   // Bad — breaks encapsulation
   import { AssetsPage } from '@/features/market/pages/assets-page'
@@ -280,7 +299,8 @@ All global application state lives in Zustand stores under `src/stores/`. Each s
 stores/
 ├── use-auth-store.ts       # JWT token, setToken, logout, sessionExpired flag
 ├── use-theme-store.ts      # 'light' | 'dark' theme, persisted in localStorage
-└── use-favorites-store.ts  # Cached favorite symbols, loaded flag
+├── use-favorites-store.ts  # Cached favorite assets, loaded flag
+└── use-alerts-store.ts     # Cached alerts + triggered history, loaded flags, CRUD actions
 ```
 
 Planned stores (not yet created):
@@ -297,9 +317,19 @@ stores/
 - Actions (functions that mutate state) must be defined inside the store, not in components.
 - If a store needs to persist data across reloads, sync with `localStorage` inside the store's actions (see `use-auth-store.ts` for the pattern).
 
-### Favorites store — `loaded` flag pattern
+### `loaded` flag pattern
 
-`useFavoritesStore` has a `loaded: boolean` flag. The `useFavorites` hook checks this flag before fetching — if already loaded, it skips the API call. This prevents double-fetching when the user navigates between `AssetsPage` and `FavoritesPage`. The flag is reset to `false` on logout so fresh data is fetched on the next login.
+Both `useFavoritesStore` and `useAlertsStore` use `loaded` boolean flags. The corresponding hooks check this flag before fetching — if already loaded, the API call is skipped. This prevents double-fetching when the user navigates between pages. The flags are reset to `false` on logout so fresh data is fetched on the next login.
+
+`useAlertsStore` has two separate flags:
+- `alertsLoaded` — for `GET /alerts` (configured alerts)
+- `triggeredLoaded` — for `GET /alerts/triggered` (history)
+
+This allows each collection to be fetched independently without blocking the other.
+
+### Alerts store — granular CRUD actions
+
+`useAlertsStore` exposes `addAlert`, `updateAlert`, and `removeAlert` actions in addition to `setAlerts`. After a successful POST/PUT/DELETE, hooks call these granular actions to update the store locally, avoiding a full re-fetch of `GET /alerts`. This gives the user an instant, optimistic UI response.
 
 > **Why Zustand?** It is minimal (~1kb), does not require a Provider wrapper, and its API is just plain JavaScript objects and functions — making it very easy to understand and test compared to Redux.
 
@@ -334,9 +364,11 @@ services/
 ├── api-client.ts        # Base HTTP client: base URL, JWT injection, 403 detection, empty body handling
 ├── auth-service.ts      # POST /auth/login, POST /auth/register
 ├── hello-service.ts     # GET /hello (health check / demo)
-└── market-service.ts    # GET /assets, GET /assets/{symbol}/candles,
-                         # GET/POST/DELETE /favorites,
-                         # GET /assets/{symbol}/moving-averages
+├── market-service.ts    # GET /assets, GET /assets/{symbol}/candles,
+│                        # GET/POST/DELETE /favorites,
+│                        # GET /assets/{symbol}/moving-averages
+└── alert-service.ts     # GET/POST /alerts, PUT/DELETE /alerts/{id},
+                         # GET /alerts/triggered
 ```
 
 ### Implemented API endpoints
@@ -347,10 +379,15 @@ services/
 | `POST` | `/auth/register` | No | `authService.register()` |
 | `GET` | `/assets` | JWT | `getAssets()` |
 | `GET` | `/assets/{symbol}/candles` | JWT | `getCandles(symbol)` |
-| `GET` | `/favorites` | JWT | `getFavorites()` |
-| `POST` | `/favorites/{symbol}` | JWT | `addFavorite(symbol)` |
-| `DELETE` | `/favorites/{symbol}` | JWT | `removeFavorite(symbol)` |
+| `GET` | `/assets/favorites` | JWT | `getFavorites()` |
+| `POST` | `/assets/{symbol}/favorite` | JWT | `addFavorite(symbol)` |
+| `DELETE` | `/assets/{symbol}/favorite` | JWT | `removeFavorite(symbol)` |
 | `GET` | `/assets/{symbol}/moving-averages` | JWT | `getMovingAverages(symbol, type, periods)` |
+| `GET` | `/alerts` | JWT | `getAlerts()` |
+| `POST` | `/alerts` | JWT | `createAlert(data)` |
+| `PUT` | `/alerts/{id}` | JWT | `updateAlert(id, data)` |
+| `DELETE` | `/alerts/{id}` | JWT | `deleteAlert(id)` |
+| `GET` | `/alerts/triggered` | JWT | `getTriggeredAlerts()` |
 
 ### API response shapes
 
@@ -361,14 +398,29 @@ Asset[]  →  { symbol: string, lastPrice: number | null, lastDate: string | nul
 // GET /assets/{symbol}/candles
 Candle[] →  { date: string, open: number, high: number, low: number, close: number, volume: number }
 
-// GET /favorites
-string[]  →  ["BTCUSDT", "ETHUSDT", ...]
+// GET /assets/favorites
+Asset[]  →  same shape as GET /assets, filtered to user's favorites
 
-// POST /favorites/{symbol}  /  DELETE /favorites/{symbol}
+// POST /assets/{symbol}/favorite  /  DELETE /assets/{symbol}/favorite
 // Returns HTTP 200 with empty body — no JSON to parse
 
 // GET /assets/{symbol}/moving-averages?type=SMA&periods=20,50
 MovingAverageSeries[] → [{ type: "SMA", period: 20, values: [{ date, value }] }]
+
+// GET /alerts
+Alert[] → [{ id, symbol, type, direction, thresholdValue, recurring, active, createdAt }]
+
+// POST /alerts  →  201 Created
+Alert  → same shape as above
+
+// PUT /alerts/{id}  →  200 OK
+Alert  → updated alert object
+
+// DELETE /alerts/{id}  →  204 No Content (empty body)
+
+// GET /alerts/triggered
+TriggeredAlert[] → [{ id, alertId, symbol, type, direction, thresholdValue,
+                      triggeredValue, candleDate, triggeredAt }]
 
 // Error (e.g. 404)
 AssetError → { error: string, symbol: string }
@@ -376,7 +428,7 @@ AssetError → { error: string, symbol: string }
 
 ### Empty body responses
 
-`POST /favorites` and `DELETE /favorites` return 200 with an empty body. `api-client.ts` handles this by using `res.text()` and only calling `JSON.parse()` if the string is non-empty. Never use `res.json()` for endpoints that may return an empty body — it throws `Unexpected end of JSON input`.
+`POST /favorites`, `DELETE /favorites`, and `DELETE /alerts/{id}` all return 2xx with an empty body. `api-client.ts` handles this by using `res.text()` and only calling `JSON.parse()` if the string is non-empty. Never use `res.json()` for endpoints that may return an empty body — it throws `Unexpected end of JSON input`.
 
 - `api-client.ts` wraps `fetch` and handles: base URL (from `VITE_API_BASE_URL`), attaching the JWT `Authorization: Bearer` header on every request, 403 detection (sets `sessionExpired` in auth store), and throwing a typed `Error` on non-2xx responses.
 - All service functions must return typed data. Define response interfaces in `src/types/api.ts`.
@@ -452,6 +504,87 @@ Favorites are managed via three REST endpoints (GET / POST / DELETE) and cached 
 
 ---
 
+## Alerts
+
+The alert system lets users configure price and volume threshold alerts on any asset, and consult the history of triggered events.
+
+### Types (`src/types/api.ts`)
+
+```ts
+type AlertType      = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD'
+type AlertDirection = 'ABOVE' | 'BELOW'
+
+interface Alert {
+  id: number; symbol: string; type: AlertType; direction: AlertDirection
+  thresholdValue: number; recurring: boolean; active: boolean; createdAt: string
+}
+
+interface TriggeredAlert {
+  id: number; alertId: number; symbol: string; type: AlertType; direction: AlertDirection
+  thresholdValue: number; triggeredValue: number; candleDate: string; triggeredAt: string
+}
+
+interface CreateAlertRequest { symbol, type, direction, thresholdValue, recurring }
+interface UpdateAlertRequest { type?, direction?, thresholdValue?, recurring?, active? }
+```
+
+### Hook architecture
+
+Three hooks, following the separation-of-concerns principle:
+
+| Hook | File | Purpose |
+|---|---|---|
+| `useAlerts` | `hooks/use-alerts.ts` | Fetch + cache all alerts, expose `create`/`update`/`remove` |
+| `useTriggeredAlerts` | `hooks/use-triggered-alerts.ts` | Fetch + cache triggered history |
+| `useAssetAlerts` | `hooks/use-asset-alerts.ts` | Combines the two hooks, filters by symbol (used in asset-detail-page) |
+
+`useAssetAlerts` does **not** make additional API calls — it filters data already in the store via `useMemo`. The filtering is O(n) on a small list, so no performance concern.
+
+### Components
+
+| Component | File | Responsibility |
+|---|---|---|
+| `AlertForm` | `components/alert-form.tsx` | Inline creation form: type, direction, threshold, recurring checkbox |
+| `AlertCard` | `components/alert-card.tsx` | Display + edit inline + delete with 3-second confirm inline |
+| `TriggeredAlertCard` | `components/triggered-alert-card.tsx` | Triggered event card with temporal styling |
+| `TodayAlertsBanner` | `components/today-alerts-banner.tsx` | Compact banner for dashboard, only when alerts triggered today |
+
+### Page `/alerts`
+
+Two modes toggled by a gear icon (roue crantée) in the page header:
+
+- **Mode historique** (default): full list of `TriggeredAlert`, newest first. Triggered today → vivid colors (green for ABOVE, red for BELOW). Older than 1 day → pastel/muted slate tones.
+- **Mode gestion**: full list of configured `Alert`. Each card supports edit inline and delete with confirmation.
+
+The gear icon uses `bg-primary/10 text-primary` when management mode is active, giving clear visual feedback of the current mode.
+
+### Temporal styling — `isToday()` helper
+
+Both `TriggeredAlertCard` and `TodayAlertsBanner` use a local `isToday(dateStr)` function that compares `triggeredAt` to today's date in the browser's local timezone. This avoids adding a backend flag for "is today". The function is duplicated in both files (it's 6 lines) rather than extracted to `utils/` — the deduplication cost is not worth a shared dependency at this scale.
+
+### Delete confirmation — inline timeout pattern
+
+`AlertCard` uses a two-click pattern for deletion:
+1. First click → `confirming = true`, button becomes red "Confirmer ?"
+2. A `setTimeout` of 3 seconds resets `confirming = false` automatically if no second click
+3. Second click within 3s → calls `onDelete(alert.id)`, timer cleared via `useRef`
+
+The timer ref is stored in `useRef<ReturnType<typeof setTimeout>>` and cleared in `useEffect` cleanup to prevent memory leaks on unmount.
+
+### Integration points
+
+- **`AssetsPage`**: `<TodayAlertsBanner />` rendered above the market table header. Conditionally renders only when `todayAlerts.length > 0` — no visual noise if no alerts today.
+- **`AssetDetailPage`**: Three sections added below the chart:
+  1. `<AlertForm symbol={symbol} onSubmit={createAlert} />` — always visible
+  2. `<AlertCard />` list — only when `assetAlerts.length > 0`
+  3. `<TriggeredAlertCard />` list — only when `assetTriggered.length > 0`
+
+### Reset on logout
+
+`top-navbar.tsx` calls `useAlertsStore.getState().reset()` on logout, alongside `resetFavorites()`. This clears both `alerts` and `triggeredAlerts` and resets `alertsLoaded` and `triggeredLoaded` to `false`, ensuring fresh data on the next login.
+
+---
+
 ## Search / Filtering
 
 Both `AssetsPage` and `FavoritesPage` include a search input that filters the displayed assets by symbol in real time.
@@ -490,6 +623,12 @@ The search logic is 3 lines of code (state + trim + filter). Extracting a hook w
 | 403 handling | `useAuthStore.getState()` in `api-client.ts` | No React context available in a plain TS module |
 | MA color consistency | Parent sets `MovingAverageSeries.color` | Decouples "which color per period" policy from the generic chart component |
 | Favorites cache | `loaded` flag in store | Avoids double-fetching on navigation |
+| Alerts cache | Two `loaded` flags (`alertsLoaded`, `triggeredLoaded`) | Two independent endpoints — fetching one should not block the other |
+| Alert CRUD in store | Granular `addAlert`/`updateAlert`/`removeAlert` actions | Avoids re-fetching `GET /alerts` after every mutation — instant UI response |
+| Alert deletion confirm | Inline timeout (3s), `useRef` for timer | No modal needed; `useRef` avoids memory leak on unmount |
+| `isToday()` duplication | Duplicated in `TriggeredAlertCard` and `TodayAlertsBanner` | 6-line helper — shared utility would be premature abstraction at this scale |
+| `useAssetAlerts` export | Exported from `@/features/alerts` barrel | Consumed by `market` feature — cross-feature import requires barrel |
+| Alert form state | Local `useState`, not store | Ephemeral — no sharing or persistence needed across components |
 | Tooltip at 60fps | Direct DOM via ref, not `useState` | Prevents React re-render storms |
 | `periodsKey` in `useMovingAverages` | Serialize `periods[]` to string for `useEffect` deps | Array identity changes every render; string comparison is stable |
 | Search filtering | Client-side `filter()` with local `useState` | All data already in memory; no backend search endpoint needed |
