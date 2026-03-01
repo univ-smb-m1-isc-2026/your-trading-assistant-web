@@ -25,6 +25,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAssets } from '../hooks/use-assets'
 import { useFavorites } from '../hooks/use-favorites'
+import { TodayAlertsBanner } from '@/features/alerts'
 import { cn } from '@/utils/cn'
 import type { Asset } from '@/types/api'
 
@@ -229,6 +230,9 @@ export function AssetsPage() {
 
   return (
     <div className="p-6">
+      {/* Bandeau alertes du jour — ne s'affiche que s'il y a des alertes aujourd'hui */}
+      <TodayAlertsBanner />
+
       {/* En-tête avec titre + champ de recherche */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>

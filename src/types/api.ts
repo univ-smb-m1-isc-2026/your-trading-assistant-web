@@ -96,3 +96,83 @@ export interface MovingAverageSeries {
   /** Couleur hex optionnelle pour la ligne sur le chart. */
   color?: string
 }
+
+// --- Alertes ---
+
+/**
+ * Types d'alerte supportés par le backend.
+ * PRICE_THRESHOLD = seuil de prix (ex: BTC dépasse 100 000 $)
+ * VOLUME_THRESHOLD = seuil de volume (ex: volume ETH dépasse 1M)
+ */
+export type AlertType = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD'
+
+/**
+ * Direction du déclenchement.
+ * ABOVE = se déclenche quand la valeur dépasse le seuil (hausse)
+ * BELOW = se déclenche quand la valeur passe sous le seuil (baisse)
+ */
+export type AlertDirection = 'ABOVE' | 'BELOW'
+
+/**
+ * Une alerte configurée par l'utilisateur.
+ * Retournée par GET /alerts et POST /alerts.
+ *
+ * recurring: true → l'alerte reste active après déclenchement (se répète)
+ * recurring: false → one-shot, désactivée automatiquement après le 1er déclenchement
+ * active: true → l'alerte est surveillée par le backend
+ * active: false → l'alerte est en pause (one-shot déjà déclenchée, ou désactivée manuellement)
+ */
+export interface Alert {
+  id: number
+  symbol: string
+  type: AlertType
+  direction: AlertDirection
+  thresholdValue: number
+  recurring: boolean
+  active: boolean
+  createdAt: string
+}
+
+/**
+ * Un déclenchement d'alerte (historique).
+ * Retourné par GET /alerts/triggered.
+ *
+ * triggeredValue = valeur réelle au moment du déclenchement
+ * candleDate = date de la bougie qui a déclenché l'alerte
+ * triggeredAt = horodatage exact du déclenchement (ISO 8601)
+ */
+export interface TriggeredAlert {
+  id: number
+  alertId: number
+  symbol: string
+  type: AlertType
+  direction: AlertDirection
+  thresholdValue: number
+  triggeredValue: number
+  candleDate: string
+  triggeredAt: string
+}
+
+/**
+ * Corps de la requête POST /alerts.
+ * Tous les champs sont requis pour créer une alerte.
+ */
+export interface CreateAlertRequest {
+  symbol: string
+  type: AlertType
+  direction: AlertDirection
+  thresholdValue: number
+  recurring: boolean
+}
+
+/**
+ * Corps de la requête PUT /alerts/{id}.
+ * Mise à jour partielle : seuls les champs présents sont modifiés.
+ */
+export interface UpdateAlertRequest {
+  type?: AlertType
+  direction?: AlertDirection
+  thresholdValue?: number
+  recurring?: boolean
+  active?: boolean
+}

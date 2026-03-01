@@ -28,6 +28,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useCandles } from '../hooks/use-candles'
 import { useMovingAverages } from '../hooks/use-moving-averages'
 import { CandlestickChart } from '@/components/ui/candlestick-chart'
+import { AlertForm, AlertCard, TriggeredAlertCard, useAssetAlerts } from '@/features/alerts'
 import { cn } from '@/utils/cn'
 
 /**
@@ -92,6 +93,15 @@ export function AssetDetailPage() {
   // ─── État des contrôles MA ──────────────────────────────────────────────
   const [maType, setMaType] = useState<'SMA' | 'EMA'>('SMA')
   const [activePeriods, setActivePeriods] = useState<Set<number>>(new Set([20, 50]))
+
+  // ─── Alertes pour cet asset ─────────────────────────────────────────────
+  const {
+    assetAlerts,
+    assetTriggered,
+    create: createAlert,
+    update: updateAlert,
+    remove: removeAlert,
+  } = useAssetAlerts(symbol ?? '')
 
   /**
    * Toggle une période dans le Set. useCallback pour éviter de recréer
@@ -264,6 +274,49 @@ export function AssetDetailPage() {
 
           <CandlestickChart candles={candles} height={480} movingAverages={maSeries} />
         </div>
+      )}
+
+      {/* ─── Section Alertes ────────────────────────────────────────────── */}
+      {!loading && !error && symbol && (
+        <>
+          {/* Formulaire de création d'alerte — toujours visible (inline) */}
+          <div className="mt-6 rounded-xl border border-slate-300 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+            <AlertForm symbol={symbol} onSubmit={createAlert} />
+          </div>
+
+          {/* Alertes actives pour cet asset */}
+          {assetAlerts.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+                Alertes configurées ({assetAlerts.length})
+              </h3>
+              <div className="space-y-2">
+                {assetAlerts.map((alert) => (
+                  <AlertCard
+                    key={alert.id}
+                    alert={alert}
+                    onUpdate={updateAlert}
+                    onDelete={removeAlert}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Historique des déclenchements pour cet asset */}
+          {assetTriggered.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+                Déclenchements ({assetTriggered.length})
+              </h3>
+              <div className="space-y-2">
+                {assetTriggered.map((triggered) => (
+                  <TriggeredAlertCard key={triggered.id} triggered={triggered} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

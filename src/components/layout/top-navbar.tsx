@@ -19,20 +19,23 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/stores/use-theme-store'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { useFavoritesStore } from '@/stores/use-favorites-store'
+import { useAlertsStore } from '@/stores/use-alerts-store'
 
 export function TopNavbar() {
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const logout = useAuthStore((s) => s.logout)
   const resetFavorites = useFavoritesStore((s) => s.reset)
+  const resetAlerts = useAlertsStore((s) => s.reset)
   const navigate = useNavigate()
 
   function handleLogout() {
-    // Réinitialise le store des favoris avant de déconnecter l'utilisateur.
-    // Sans ce reset, les favoris du premier utilisateur resteraient en mémoire
+    // Réinitialise les stores de données utilisateur avant de déconnecter.
+    // Sans ce reset, les données du premier utilisateur resteraient en mémoire
     // et seraient visibles par le prochain utilisateur qui se connecte sur
     // la même session de navigateur sans rechargement de page.
     resetFavorites()
+    resetAlerts()
     logout()
     navigate('/login')
   }
