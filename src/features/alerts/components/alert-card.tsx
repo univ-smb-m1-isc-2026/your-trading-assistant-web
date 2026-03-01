@@ -14,9 +14,9 @@
  *   de 3 secondes est un bon compromis entre sécurité et rapidité.
  */
 
-import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/utils/cn'
 import type { Alert, AlertType, AlertDirection, UpdateAlertRequest } from '@/types/api'
+import { useAlertCard } from '../hooks/use-alert-card'
 
 interface AlertCardProps {
   alert: Alert
@@ -33,91 +33,18 @@ function formatDirection(direction: AlertDirection): string {
 }
 
 export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
-  const [editing, setEditing] = useState(false)
-  const [confirming, setConfirming] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const {
+    editing,
+    confirming,
+    submitting,
+    editForm,
+    setField,
+    handlers,
+  } = useAlertCard({ alert, onUpdate, onDelete })
 
-  // ─── État d'édition ──────────────────────────────────────────────
-  const [editType, setEditType] = useState<AlertType>(alert.type)
-  const [editDirection, setEditDirection] = useState<AlertDirection>(alert.direction)
-  const [editThreshold, setEditThreshold] = useState(String(alert.thresholdValue))
-  const [editRecurring, setEditRecurring] = useState(alert.recurring)
-  const [editError, setEditError] = useState<string | null>(null)
-
-  // Cleanup du timer de confirmation au démontage
-  useEffect(() => {
-    return () => {
-      if (confirmTimer.current) clearTimeout(confirmTimer.current)
-    }
-  }, [])
-
-  function handleStartEdit() {
-    setEditType(alert.type)
-    setEditDirection(alert.direction)
-    setEditThreshold(String(alert.thresholdValue))
-    setEditRecurring(alert.recurring)
-    setEditError(null)
-    setEditing(true)
-  }
-
-  function handleCancelEdit() {
-    setEditing(false)
-    setEditError(null)
-  }
-
-  async function handleSaveEdit() {
-    setEditError(null)
-    const value = parseFloat(editThreshold)
-    if (isNaN(value) || value <= 0) {
-      setEditError('Le seuil doit être un nombre positif.')
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      const data: UpdateAlertRequest = {}
-      if (editType !== alert.type) data.type = editType
-      if (editDirection !== alert.direction) data.direction = editDirection
-      if (value !== alert.thresholdValue) data.thresholdValue = value
-      if (editRecurring !== alert.recurring) data.recurring = editRecurring
-
-      // Ne rien envoyer si rien n'a changé
-      if (Object.keys(data).length > 0) {
-        await onUpdate(alert.id, data)
-      }
-      setEditing(false)
-    } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Erreur lors de la modification.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function handleDeleteClick() {
-    if (confirming) {
-      // Deuxième clic = confirmation
-      if (confirmTimer.current) clearTimeout(confirmTimer.current)
-      setConfirming(false)
-      setSubmitting(true)
-      void onDelete(alert.id).finally(() => setSubmitting(false))
-    } else {
-      // Premier clic = passage en mode confirmation
-      setConfirming(true)
-      confirmTimer.current = setTimeout(() => {
-        setConfirming(false)
-      }, 3000)
-    }
-  }
-
-  async function handleToggleActive() {
-    setSubmitting(true)
-    try {
-      await onUpdate(alert.id, { active: !alert.active })
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  const { type: editType, direction: editDirection, threshold: editThreshold, recurring: editRecurring, error: editError } = editForm
+  const { setType, setDirection, setThreshold, setRecurring } = setField
+  const { startEdit, cancelEdit, saveEdit, deleteClick, toggleActive } = handlers
 
   // ─── Mode édition ────────────────────────────────────────────────
   if (editing) {
@@ -127,13 +54,13 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
           <span className="text-xs font-semibold text-primary">Modification</span>
           <div className="flex gap-2">
             <button
-              onClick={handleCancelEdit}
+              onClick={cancelEdit}
               className="rounded px-2 py-1 text-xs text-slate-600 transition-colors hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
             >
               Annuler
             </button>
             <button
-              onClick={() => void handleSaveEdit()}
+              onClick={() => void saveEdit()}
               disabled={submitting}
               className="rounded bg-primary px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
@@ -152,7 +79,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setEditType(opt.value)}
+                onClick={() => setType(opt.value)}
                 className={cn(
                   'flex-1 px-2 py-1 text-xs font-semibold transition-colors',
                   editType === opt.value
@@ -174,7 +101,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setEditDirection(opt.value)}
+                onClick={() => setDirection(opt.value)}
                 className={cn(
                   'flex-1 px-2 py-1 text-xs font-semibold transition-colors',
                   editDirection === opt.value
@@ -192,7 +119,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
             type="number"
             step="any"
             value={editThreshold}
-            onChange={(e) => setEditThreshold(e.target.value)}
+            onChange={(e) => setThreshold(e.target.value)}
             className="rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
           />
 
@@ -201,7 +128,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
             <input
               type="checkbox"
               checked={editRecurring}
-              onChange={(e) => setEditRecurring(e.target.checked)}
+              onChange={(e) => setRecurring(e.target.checked)}
               className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600"
             />
             Récurrente
@@ -265,7 +192,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
       <div className="flex items-center gap-1">
         {/* Toggle actif/inactif */}
         <button
-          onClick={() => void handleToggleActive()}
+          onClick={() => void toggleActive()}
           disabled={submitting}
           title={alert.active ? 'Désactiver' : 'Réactiver'}
           className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -285,7 +212,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
 
         {/* Modifier */}
         <button
-          onClick={handleStartEdit}
+          onClick={startEdit}
           disabled={submitting}
           title="Modifier"
           className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
@@ -298,7 +225,7 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
 
         {/* Supprimer — avec confirmation inline */}
         <button
-          onClick={handleDeleteClick}
+          onClick={deleteClick}
           disabled={submitting}
           title={confirming ? 'Cliquer pour confirmer' : 'Supprimer'}
           className={cn(
