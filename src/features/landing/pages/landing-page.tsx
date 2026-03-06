@@ -210,7 +210,7 @@ export function LandingPage() {
                   <path d="M12 2a4 4 0 014 4v1a3 3 0 012.74 4.26A4 4 0 0118 18h-1.5M12 2a4 4 0 00-4 4v1a3 3 0 01-2.74 4.26A4 4 0 006 18h1.5M12 2v20" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               }
-              title="Signaux IA"
+              title="Signaux"
               description="Notre algorithme analyse les tendances et détecte les opportunités : probabilités de hausse, conseils de position."
             />
             <FeatureCard
