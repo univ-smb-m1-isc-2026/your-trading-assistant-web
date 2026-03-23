@@ -38,7 +38,7 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          VITE_API_BASE_URL: https://your-trading-assistant-api.oups.net/
+          VITE_API_BASE_URL: https://your-trading-assistant-api.oups.net
 
       # Login sur ghcr.io avec le GITHUB_TOKEN fourni automatiquement
       - name: Log in to GitHub Container Registry
