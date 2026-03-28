@@ -62,17 +62,18 @@ export function TodayAlertsBanner() {
             </p>
             <div className="mt-1 flex flex-wrap gap-2">
               {preview.map((t) => (
-                <span
+                <Link
                   key={t.id}
+                  to={`/assets/${t.symbol}`}
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors hover:ring-1 hover:ring-amber-400',
                     t.direction === 'ABOVE'
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                       : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',
                   )}
                 >
                   {t.direction === 'ABOVE' ? '↑' : '↓'} {t.symbol}
-                </span>
+                </Link>
               ))}
               {remaining > 0 && (
                 <span className="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-400">

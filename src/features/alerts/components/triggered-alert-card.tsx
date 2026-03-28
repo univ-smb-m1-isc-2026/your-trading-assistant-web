@@ -11,6 +11,7 @@
  *   Le fuseau horaire utilisé est celui du navigateur (cohérent avec l'UX).
  */
 
+import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 import type { TriggeredAlert } from '@/types/api'
 
@@ -66,14 +67,17 @@ export function TriggeredAlertCard({ triggered }: TriggeredAlertCardProps) {
 
           <div>
             <div className="flex items-center gap-2">
-              <span className={cn(
-                'text-sm font-semibold',
-                today
-                  ? 'text-slate-900 dark:text-white'
-                  : 'text-slate-500 dark:text-slate-400',
-              )}>
+              <Link
+                to={`/assets/${triggered.symbol}`}
+                className={cn(
+                  'text-sm font-bold transition-colors hover:text-primary dark:hover:text-blue-400',
+                  today
+                    ? 'text-slate-900 dark:text-white'
+                    : 'text-slate-500 dark:text-slate-400',
+                )}
+              >
                 {triggered.symbol}
-              </span>
+              </Link>
               <span className={cn(
                 'rounded px-1.5 py-0.5 text-[10px] font-semibold',
                 today

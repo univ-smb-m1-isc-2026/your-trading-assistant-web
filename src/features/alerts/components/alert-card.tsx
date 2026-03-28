@@ -14,6 +14,7 @@
  *   de 3 secondes est un bon compromis entre sécurité et rapidité.
  */
 
+import { Link } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 import type { Alert, AlertType, AlertDirection, UpdateAlertRequest, MAType } from '@/types/api'
 import { useAlertCard } from '../hooks/use-alert-card'
@@ -216,7 +217,13 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
 
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">
+            <Link
+              to={`/assets/${alert.symbol}`}
+              className="text-sm font-bold text-slate-900 transition-colors hover:text-primary dark:text-white dark:hover:text-blue-400"
+            >
+              {alert.symbol}
+            </Link>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {!isMACross ? (
                 `${formatAlertType(alert.type)} ${formatDirection(alert.direction, alert.type).toLowerCase()}`
               ) : (
