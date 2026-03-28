@@ -103,13 +103,21 @@ export interface MovingAverageSeries {
  * Types d'alerte supportés par le backend.
  * PRICE_THRESHOLD = seuil de prix (ex: BTC dépasse 100 000 $)
  * VOLUME_THRESHOLD = seuil de volume (ex: volume ETH dépasse 1M)
+ * MA_CROSSOVER = croisement de moyennes mobiles (ex: SMA(8) croise SMA(50))
  */
-export type AlertType = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD'
+export type AlertType = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD' | 'MA_CROSSOVER'
+
+/**
+ * Type de moyenne mobile pour les alertes de croisement.
+ */
+export type MAType = 'SMA' | 'EMA'
 
 /**
  * Direction du déclenchement.
  * ABOVE = se déclenche quand la valeur dépasse le seuil (hausse)
+ *         OU quand la courte croise au-dessus de la longue (Golden Cross)
  * BELOW = se déclenche quand la valeur passe sous le seuil (baisse)
+ *         OU quand la courte croise en-dessous de la longue (Death Cross)
  */
 export type AlertDirection = 'ABOVE' | 'BELOW'
 
@@ -121,13 +129,19 @@ export type AlertDirection = 'ABOVE' | 'BELOW'
  * recurring: false → one-shot, désactivée automatiquement après le 1er déclenchement
  * active: true → l'alerte est surveillée par le backend
  * active: false → l'alerte est en pause (one-shot déjà déclenchée, ou désactivée manuellement)
+ *
+ * Les champs shortPeriod, longPeriod et maType ne sont renseignés que pour type === 'MA_CROSSOVER'.
+ * Le champ thresholdValue est null pour type === 'MA_CROSSOVER'.
  */
 export interface Alert {
   id: number
   symbol: string
   type: AlertType
   direction: AlertDirection
-  thresholdValue: number
+  thresholdValue?: number | null
+  shortPeriod?: number
+  longPeriod?: number
+  maType?: MAType
   recurring: boolean
   active: boolean
   createdAt: string
@@ -147,21 +161,27 @@ export interface TriggeredAlert {
   symbol: string
   type: AlertType
   direction: AlertDirection
-  thresholdValue: number
+  thresholdValue?: number | null
   triggeredValue: number
   candleDate: string
   triggeredAt: string
+  /** Détails de l'alerte au moment du déclenchement (ou actuels selon le backend) */
+  alert: Alert
 }
 
 /**
  * Corps de la requête POST /alerts.
- * Tous les champs sont requis pour créer une alerte.
+ * thresholdValue requis pour PRICE/VOLUME.
+ * shortPeriod, longPeriod, maType requis pour MA_CROSSOVER.
  */
 export interface CreateAlertRequest {
   symbol: string
   type: AlertType
   direction: AlertDirection
-  thresholdValue: number
+  thresholdValue?: number | null
+  shortPeriod?: number
+  longPeriod?: number
+  maType?: MAType
   recurring: boolean
 }
 
@@ -172,7 +192,10 @@ export interface CreateAlertRequest {
 export interface UpdateAlertRequest {
   type?: AlertType
   direction?: AlertDirection
-  thresholdValue?: number
+  thresholdValue?: number | null
+  shortPeriod?: number
+  longPeriod?: number
+  maType?: MAType
   recurring?: boolean
   active?: boolean
 }

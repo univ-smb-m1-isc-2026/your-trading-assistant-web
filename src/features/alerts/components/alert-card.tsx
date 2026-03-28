@@ -15,7 +15,7 @@
  */
 
 import { cn } from '@/utils/cn'
-import type { Alert, AlertType, AlertDirection, UpdateAlertRequest } from '@/types/api'
+import type { Alert, AlertType, AlertDirection, UpdateAlertRequest, MAType } from '@/types/api'
 import { useAlertCard } from '../hooks/use-alert-card'
 
 interface AlertCardProps {
@@ -25,10 +25,15 @@ interface AlertCardProps {
 }
 
 function formatAlertType(type: AlertType): string {
-  return type === 'PRICE_THRESHOLD' ? 'Prix' : 'Volume'
+  if (type === 'PRICE_THRESHOLD') return 'Prix'
+  if (type === 'VOLUME_THRESHOLD') return 'Volume'
+  return 'MA Crossover'
 }
 
-function formatDirection(direction: AlertDirection): string {
+function formatDirection(direction: AlertDirection, type: AlertType): string {
+  if (type === 'MA_CROSSOVER') {
+    return direction === 'ABOVE' ? 'Golden Cross' : 'Death Cross'
+  }
   return direction === 'ABOVE' ? 'Hausse' : 'Baisse'
 }
 
@@ -42,9 +47,21 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
     handlers,
   } = useAlertCard({ alert, onUpdate, onDelete })
 
-  const { type: editType, direction: editDirection, threshold: editThreshold, recurring: editRecurring, error: editError } = editForm
-  const { setType, setDirection, setThreshold, setRecurring } = setField
+  const { 
+    type: editType, 
+    direction: editDirection, 
+    threshold: editThreshold, 
+    shortPeriod: editShortPeriod,
+    longPeriod: editLongPeriod,
+    maType: editMaType,
+    recurring: editRecurring, 
+    error: editError 
+  } = editForm
+  const { setType, setDirection, setThreshold, setShortPeriod, setLongPeriod, setMaType, setRecurring } = setField
   const { startEdit, cancelEdit, saveEdit, deleteClick, toggleActive } = handlers
+
+  const isMACross = alert.type === 'MA_CROSSOVER'
+  const isEditingMACross = editType === 'MA_CROSSOVER'
 
   // ─── Mode édition ────────────────────────────────────────────────
   if (editing) {
@@ -69,19 +86,20 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Type */}
           <div className="flex overflow-hidden rounded border border-slate-300 dark:border-slate-700">
             {([
               { value: 'PRICE_THRESHOLD' as const, label: 'Prix' },
               { value: 'VOLUME_THRESHOLD' as const, label: 'Volume' },
+              { value: 'MA_CROSSOVER' as const, label: 'MA Cross' },
             ]).map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setType(opt.value)}
                 className={cn(
-                  'flex-1 px-2 py-1 text-xs font-semibold transition-colors',
+                  'flex-1 px-2 py-1 text-[10px] font-semibold transition-colors sm:text-xs',
                   editType === opt.value
                     ? 'bg-primary text-white'
                     : 'bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-400',
@@ -95,15 +113,21 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
           {/* Direction */}
           <div className="flex overflow-hidden rounded border border-slate-300 dark:border-slate-700">
             {([
-              { value: 'ABOVE' as const, label: '↑ Hausse' },
-              { value: 'BELOW' as const, label: '↓ Baisse' },
+              { 
+                value: 'ABOVE' as const, 
+                label: isEditingMACross ? 'Golden Cross' : 'Hausse' 
+              },
+              { 
+                value: 'BELOW' as const, 
+                label: isEditingMACross ? 'Death Cross' : 'Baisse' 
+              },
             ]).map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setDirection(opt.value)}
                 className={cn(
-                  'flex-1 px-2 py-1 text-xs font-semibold transition-colors',
+                  'flex-1 px-2 py-1 text-[10px] font-semibold transition-colors sm:text-xs',
                   editDirection === opt.value
                     ? opt.value === 'ABOVE' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                     : 'bg-white text-slate-600 dark:bg-slate-900 dark:text-slate-400',
@@ -114,14 +138,43 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
             ))}
           </div>
 
-          {/* Seuil */}
-          <input
-            type="number"
-            step="any"
-            value={editThreshold}
-            onChange={(e) => setThreshold(e.target.value)}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          />
+          {/* Champs conditionnels */}
+          {!isEditingMACross ? (
+            <input
+              type="number"
+              step="any"
+              value={editThreshold}
+              onChange={(e) => setThreshold(e.target.value)}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={editShortPeriod}
+                  onChange={(e) => setShortPeriod(e.target.value)}
+                  placeholder="Courte"
+                  className="w-1/2 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+                <input
+                  type="number"
+                  value={editLongPeriod}
+                  onChange={(e) => setLongPeriod(e.target.value)}
+                  placeholder="Longue"
+                  className="w-1/2 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <select
+                value={editMaType}
+                onChange={(e) => setMaType(e.target.value as MAType)}
+                className="rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              >
+                <option value="SMA">SMA</option>
+                <option value="EMA">EMA</option>
+              </select>
+            </>
+          )}
 
           {/* Récurrente */}
           <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
@@ -164,7 +217,11 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-slate-900 dark:text-white">
-              {formatAlertType(alert.type)} {formatDirection(alert.direction).toLowerCase()}
+              {!isMACross ? (
+                `${formatAlertType(alert.type)} ${formatDirection(alert.direction, alert.type).toLowerCase()}`
+              ) : (
+                `${alert.maType}(${alert.shortPeriod}) croise ${alert.direction === 'ABOVE' ? 'au-dessus de' : 'en-dessous de'} ${alert.maType}(${alert.longPeriod})`
+              )}
             </span>
             {/* Badge récurrente */}
             {alert.recurring && (
@@ -182,9 +239,11 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
               {alert.active ? 'Active' : 'Inactive'}
             </span>
           </div>
-          <p className="mt-0.5 font-mono text-xs text-slate-600 dark:text-slate-400">
-            Seuil : {alert.thresholdValue.toLocaleString('fr-FR')}
-          </p>
+          {!isMACross && (
+            <p className="mt-0.5 font-mono text-xs text-slate-600 dark:text-slate-400">
+              Seuil : {alert.thresholdValue?.toLocaleString('fr-FR')}
+            </p>
+          )}
         </div>
       </div>
 

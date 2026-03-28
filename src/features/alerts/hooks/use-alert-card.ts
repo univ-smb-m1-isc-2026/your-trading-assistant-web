@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Alert, AlertType, AlertDirection, UpdateAlertRequest } from '@/types/api'
+import type { Alert, AlertType, AlertDirection, UpdateAlertRequest, MAType } from '@/types/api'
 
 interface UseAlertCardProps {
   alert: Alert
@@ -15,6 +15,9 @@ export interface UseAlertCardReturn {
     type: AlertType
     direction: AlertDirection
     threshold: string
+    shortPeriod: string
+    longPeriod: string
+    maType: MAType
     recurring: boolean
     error: string | null
   }
@@ -22,6 +25,9 @@ export interface UseAlertCardReturn {
     setType: (type: AlertType) => void
     setDirection: (direction: AlertDirection) => void
     setThreshold: (threshold: string) => void
+    setShortPeriod: (period: string) => void
+    setLongPeriod: (period: string) => void
+    setMaType: (type: MAType) => void
     setRecurring: (recurring: boolean) => void
   }
   handlers: {
@@ -42,7 +48,10 @@ export function useAlertCard({ alert, onUpdate, onDelete }: UseAlertCardProps): 
   // ─── État d'édition ──────────────────────────────────────────────
   const [editType, setEditType] = useState<AlertType>(alert.type)
   const [editDirection, setEditDirection] = useState<AlertDirection>(alert.direction)
-  const [editThreshold, setEditThreshold] = useState(String(alert.thresholdValue))
+  const [editThreshold, setEditThreshold] = useState(alert.thresholdValue !== null ? String(alert.thresholdValue) : '')
+  const [editShortPeriod, setEditShortPeriod] = useState(String(alert.shortPeriod ?? 8))
+  const [editLongPeriod, setEditLongPeriod] = useState(String(alert.longPeriod ?? 50))
+  const [editMaType, setEditMaType] = useState<MAType>(alert.maType ?? 'SMA')
   const [editRecurring, setEditRecurring] = useState(alert.recurring)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -56,7 +65,10 @@ export function useAlertCard({ alert, onUpdate, onDelete }: UseAlertCardProps): 
   function startEdit() {
     setEditType(alert.type)
     setEditDirection(alert.direction)
-    setEditThreshold(String(alert.thresholdValue))
+    setEditThreshold(alert.thresholdValue !== null ? String(alert.thresholdValue) : '')
+    setEditShortPeriod(String(alert.shortPeriod ?? 8))
+    setEditLongPeriod(String(alert.longPeriod ?? 50))
+    setEditMaType(alert.maType ?? 'SMA')
     setEditRecurring(alert.recurring)
     setEditError(null)
     setEditing(true)
@@ -69,20 +81,43 @@ export function useAlertCard({ alert, onUpdate, onDelete }: UseAlertCardProps): 
 
   async function saveEdit() {
     setEditError(null)
-    const value = parseFloat(editThreshold)
-    if (isNaN(value) || value <= 0) {
-      setEditError('Le seuil doit être un nombre positif.')
-      return
-    }
+    const data: UpdateAlertRequest = {}
 
-    setSubmitting(true)
-    try {
-      const data: UpdateAlertRequest = {}
+    if (editType === 'MA_CROSSOVER') {
+      const sp = parseInt(editShortPeriod, 10)
+      const lp = parseInt(editLongPeriod, 10)
+
+      if (isNaN(sp) || sp <= 0 || isNaN(lp) || lp <= 0) {
+        setEditError('Les périodes doivent être des nombres positifs.')
+        return
+      }
+      if (sp >= lp) {
+        setEditError('La période courte doit être inférieure à la période longue.')
+        return
+      }
+
+      if (editType !== alert.type) data.type = editType
+      if (editDirection !== alert.direction) data.direction = editDirection
+      if (sp !== alert.shortPeriod) data.shortPeriod = sp
+      if (lp !== alert.longPeriod) data.longPeriod = lp
+      if (editMaType !== alert.maType) data.maType = editMaType
+    } else {
+      const value = parseFloat(editThreshold)
+      if (isNaN(value) || value <= 0) {
+        setEditError('Le seuil doit être un nombre positif.')
+        return
+      }
+
       if (editType !== alert.type) data.type = editType
       if (editDirection !== alert.direction) data.direction = editDirection
       if (value !== alert.thresholdValue) data.thresholdValue = value
       if (editRecurring !== alert.recurring) data.recurring = editRecurring
+    }
 
+    if (editRecurring !== alert.recurring) data.recurring = editRecurring
+
+    setSubmitting(true)
+    try {
       // Ne rien envoyer si rien n'a changé
       if (Object.keys(data).length > 0) {
         await onUpdate(alert.id, data)
@@ -128,6 +163,9 @@ export function useAlertCard({ alert, onUpdate, onDelete }: UseAlertCardProps): 
       type: editType,
       direction: editDirection,
       threshold: editThreshold,
+      shortPeriod: editShortPeriod,
+      longPeriod: editLongPeriod,
+      maType: editMaType,
       recurring: editRecurring,
       error: editError
     },
@@ -135,6 +173,9 @@ export function useAlertCard({ alert, onUpdate, onDelete }: UseAlertCardProps): 
       setType: setEditType,
       setDirection: setEditDirection,
       setThreshold: setEditThreshold,
+      setShortPeriod: setEditShortPeriod,
+      setLongPeriod: setEditLongPeriod,
+      setMaType: setEditMaType,
       setRecurring: setEditRecurring
     },
     handlers: {

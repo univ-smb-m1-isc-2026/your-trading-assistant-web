@@ -408,7 +408,7 @@ Asset[]  →  same shape as GET /assets, filtered to user's favorites
 MovingAverageSeries[] → [{ type: "SMA", period: 20, values: [{ date, value }] }]
 
 // GET /alerts
-Alert[] → [{ id, symbol, type, direction, thresholdValue, recurring, active, createdAt }]
+Alert[] → [{ id, symbol, type, direction, thresholdValue?, shortPeriod?, longPeriod?, maType?, recurring, active, createdAt }]
 
 // POST /alerts  →  201 Created
 Alert  → same shape as above
@@ -419,8 +419,8 @@ Alert  → updated alert object
 // DELETE /alerts/{id}  →  204 No Content (empty body)
 
 // GET /alerts/triggered
-TriggeredAlert[] → [{ id, alertId, symbol, type, direction, thresholdValue,
-                      triggeredValue, candleDate, triggeredAt }]
+TriggeredAlert[] → [{ id, alertId, symbol, type, direction, thresholdValue?,
+                      triggeredValue, candleDate, triggeredAt, alert: Alert }]
 
 // Error (e.g. 404)
 AssetError → { error: string, symbol: string }
@@ -450,21 +450,38 @@ useEffect(() => {
   if (!containerRef.current) return
 
   // 2. Create the chart instance on the DOM node
-  const chart = createChart(containerRef.current, { ... })
+  const chart = createChart(containerRef.current, { 
+    // Set scaleMargins to leave space at the bottom for volume
+    rightPriceScale: { scaleMargins: { top: 0.1, bottom: 0.25 } }
+  })
 
-  // 3. Add a candlestick series using the v5 API
+  // 3. Add volume series (Histogram) on a separate scale
+  const volumeSeries = chart.addSeries(HistogramSeries, {
+    priceFormat: { type: 'volume' },
+    priceScaleId: 'volume',
+  })
+  chart.priceScale('volume').applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 } // Bottom 20% of the chart
+  })
+
+  // 4. Add a candlestick series using the v5 API
   const series = chart.addSeries(CandlestickSeries, { ... })
 
-  // 4. Add MA line series (one per active period)
+  // 5. Add MA line series (one per active period)
   const lineSeries = chart.addSeries(LineSeries, { color, lineWidth: 2 })
 
-  // 5. Feed data — lightweight-charts expects { time: "YYYY-MM-DD", ... }
+  // 6. Feed data
   series.setData(candles.map(c => ({ time: c.date as `${number}-${number}-${number}`, ... })))
+  volumeSeries.setData(candles.map(c => ({ 
+    time: c.date as `${number}-${number}-${number}`, 
+    value: c.volume,
+    color: c.close >= c.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+  })))
 
-  // 6. Subscribe to crosshair for tooltip (direct DOM, NOT useState — fires at ~60fps)
+  // 7. Subscribe to crosshair for tooltip (direct DOM, NOT useState — fires at ~60fps)
   chart.subscribeCrosshairMove((param) => { tooltipRef.current.innerHTML = ... })
 
-  // 7. MANDATORY cleanup — removes the canvas and all DOM listeners
+  // 8. MANDATORY cleanup — removes the canvas and all DOM listeners
   return () => { chart.remove() }
 }, [candles, theme, movingAverages])
 ```
@@ -473,6 +490,7 @@ useEffect(() => {
 - `chart.remove()` in the cleanup is not optional. Without it, every re-render leaks a canvas element and event listeners.
 - v5 uses `chart.addSeries(CandlestickSeries, options)` and `chart.addSeries(LineSeries, options)` — the old v4 methods (`addCandlestickSeries`, `addLineSeries`) no longer exist.
 - `lightweight-charts` expects the `time` field typed as a branded string `` `${number}-${number}-${number}` `` — cast `c.date` explicitly to satisfy TypeScript strict mode.
+- **Multi-scale charts:** Use `priceScaleId` to isolate series (like volume) on their own vertical axis. Use `scaleMargins` to prevent visual overlapping.
 - The library is ESM-only; it works with Vite out of the box, but cannot be `require()`'d in Node.js scripts.
 - `ISeriesApi<'Line'>` is the correct TypeScript type for a line series reference.
 
@@ -506,26 +524,29 @@ Favorites are managed via three REST endpoints (GET / POST / DELETE) and cached 
 
 ## Alerts
 
-The alert system lets users configure price and volume threshold alerts on any asset, and consult the history of triggered events.
+The alert system lets users configure price, volume, and moving average crossover alerts on any asset, and consult the history of triggered events.
 
 ### Types (`src/types/api.ts`)
 
 ```ts
-type AlertType      = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD'
+type AlertType      = 'PRICE_THRESHOLD' | 'VOLUME_THRESHOLD' | 'MA_CROSSOVER'
 type AlertDirection = 'ABOVE' | 'BELOW'
+type MAType         = 'SMA' | 'EMA'
 
 interface Alert {
   id: number; symbol: string; type: AlertType; direction: AlertDirection
-  thresholdValue: number; recurring: boolean; active: boolean; createdAt: string
+  thresholdValue?: number | null; recurring: boolean; active: boolean; createdAt: string
+  shortPeriod?: number; longPeriod?: number; maType?: MAType
 }
 
 interface TriggeredAlert {
   id: number; alertId: number; symbol: string; type: AlertType; direction: AlertDirection
-  thresholdValue: number; triggeredValue: number; candleDate: string; triggeredAt: string
+  thresholdValue?: number | null; triggeredValue: number; candleDate: string; triggeredAt: string
+  alert: Alert
 }
 
-interface CreateAlertRequest { symbol, type, direction, thresholdValue, recurring }
-interface UpdateAlertRequest { type?, direction?, thresholdValue?, recurring?, active? }
+interface CreateAlertRequest { symbol, type, direction, recurring, thresholdValue?, shortPeriod?, longPeriod?, maType? }
+interface UpdateAlertRequest { type?, direction?, thresholdValue?, recurring?, active?, shortPeriod?, longPeriod?, maType? }
 ```
 
 ### Hook architecture
@@ -544,23 +565,23 @@ Three hooks, following the separation-of-concerns principle:
 
 | Component | File | Responsibility |
 |---|---|---|
-| `AlertForm` | `components/alert-form.tsx` | Inline creation form: type, direction, threshold, recurring checkbox |
+| `AlertForm` | `components/alert-form.tsx` | Dynamic creation form: adapts fields based on type (Price/Volume vs MA Cross) |
 | `AlertCard` | `components/alert-card.tsx` | Display + edit inline + delete with 3-second confirm inline |
-| `TriggeredAlertCard` | `components/triggered-alert-card.tsx` | Triggered event card with temporal styling |
+| `TriggeredAlertCard` | `components/triggered-alert-card.tsx` | Triggered event card with temporal styling and price display |
 | `TodayAlertsBanner` | `components/today-alerts-banner.tsx` | Compact banner for dashboard, only when alerts triggered today |
 
 ### Page `/alerts`
 
 Two modes toggled by a gear icon (roue crantée) in the page header:
 
-- **Mode historique** (default): full list of `TriggeredAlert`, newest first. Triggered today → vivid colors (green for ABOVE, red for BELOW). Older than 1 day → pastel/muted slate tones.
+- **Mode historique** (default): full list of `TriggeredAlert`, newest first. Includes details from the nested `alert` object.
 - **Mode gestion**: full list of configured `Alert`. Each card supports edit inline and delete with confirmation.
 
-The gear icon uses `bg-primary/10 text-primary` when management mode is active, giving clear visual feedback of the current mode.
+### MA Crossover Logic
 
-### Temporal styling — `isToday()` helper
-
-Both `TriggeredAlertCard` and `TodayAlertsBanner` use a local `isToday(dateStr)` function that compares `triggeredAt` to today's date in the browser's local timezone. This avoids adding a backend flag for "is today". The function is duplicated in both files (it's 6 lines) rather than extracted to `utils/` — the deduplication cost is not worth a shared dependency at this scale.
+- **Form validation:** `shortPeriod` must be `< longPeriod` and both must be positive integers.
+- **Direction Labels:** For `MA_CROSSOVER`, `ABOVE` is labeled "Golden Cross" and `BELOW` is labeled "Death Cross".
+- **Omission of thresholdValue:** When creating/updating `MA_CROSSOVER`, `thresholdValue` MUST be omitted from the payload (not sent as `null`) to satisfy backend constraints.
 
 ### Delete confirmation — inline timeout pattern
 
@@ -570,18 +591,6 @@ Both `TriggeredAlertCard` and `TodayAlertsBanner` use a local `isToday(dateStr)`
 3. Second click within 3s → calls `onDelete(alert.id)`, timer cleared via `useRef`
 
 The timer ref is stored in `useRef<ReturnType<typeof setTimeout>>` and cleared in `useEffect` cleanup to prevent memory leaks on unmount.
-
-### Integration points
-
-- **`AssetsPage`**: `<TodayAlertsBanner />` rendered above the market table header. Conditionally renders only when `todayAlerts.length > 0` — no visual noise if no alerts today.
-- **`AssetDetailPage`**: Three sections added below the chart:
-  1. `<AlertForm symbol={symbol} onSubmit={createAlert} />` — always visible
-  2. `<AlertCard />` list — only when `assetAlerts.length > 0`
-  3. `<TriggeredAlertCard />` list — only when `assetTriggered.length > 0`
-
-### Reset on logout
-
-`top-navbar.tsx` calls `useAlertsStore.getState().reset()` on logout, alongside `resetFavorites()`. This clears both `alerts` and `triggeredAlerts` and resets `alertsLoaded` and `triggeredLoaded` to `false`, ensuring fresh data on the next login.
 
 ---
 
@@ -635,3 +644,7 @@ The search logic is 3 lines of code (state + trim + filter). Extracting a hook w
 | Light mode contrast | `text-slate-400` → `text-slate-600`, `border-slate-100/200` → `border-slate-200/300` | slate-400 (~3.0:1) fails WCAG AA; slate-600 (~5.5:1) passes. Borders upgraded one step for visibility on white bg. Dark mode classes untouched. |
 | Chart tooltip labelColor | `theme === 'dark' ? '#94a3b8' : '#64748b'` | Was accidentally swapped (light got lighter color). Fixed so light mode gets the darker hex for readable labels. |
 | Chart hex colors (light) | grid `#e2e8f0`, border `#cbd5e1`, tooltip border `#cbd5e1`, divider `#e2e8f0` | Upgraded from slate-100/200 to slate-200/300 equivalents for visible separation on white backgrounds. |
+| **Alert omission** | Omit `thresholdValue` for `MA_CROSSOVER` | Avoids database NOT NULL constraint violations when the field is irrelevant. |
+| **Triggered join** | Use nested `alert` object in `TriggeredAlert` | Prevents complex client-side joins and provides accurate params at trigger time. |
+| **Volume Opacity** | Use 40-50% opacity for `HistogramSeries` | Ensures volume bars remain in the background and don't visually clutter the price candles. |
+| **Chart Margins** | 25% bottom margin on price scale | Leaves dedicated room for the volume histogram without overlap. |

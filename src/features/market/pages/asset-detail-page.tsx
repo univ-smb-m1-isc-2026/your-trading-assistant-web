@@ -35,7 +35,7 @@ import { cn } from '@/utils/cn'
  * Périodes disponibles pour les moyennes mobiles.
  * Triées par ordre croissant pour que l'attribution des couleurs soit stable.
  */
-const AVAILABLE_PERIODS = [20, 50, 200] as const
+const AVAILABLE_PERIODS = [8, 20, 50, 200] as const
 
 /**
  * Couleurs MA — même tableau que dans candlestick-chart.tsx.
@@ -92,7 +92,7 @@ export function AssetDetailPage() {
 
   // ─── État des contrôles MA ──────────────────────────────────────────────
   const [maType, setMaType] = useState<'SMA' | 'EMA'>('SMA')
-  const [activePeriods, setActivePeriods] = useState<Set<number>>(new Set([20, 50]))
+  const [activePeriods, setActivePeriods] = useState<Set<number>>(new Set([8, 50]))
 
   // ─── Alertes pour cet asset ─────────────────────────────────────────────
   const {

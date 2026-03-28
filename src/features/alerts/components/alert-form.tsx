@@ -18,7 +18,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/utils/cn'
-import type { AlertType, AlertDirection, CreateAlertRequest } from '@/types/api'
+import type { AlertType, AlertDirection, CreateAlertRequest, MAType } from '@/types/api'
 
 interface AlertFormProps {
   symbol: string
@@ -29,6 +29,9 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
   const [type, setType] = useState<AlertType>('PRICE_THRESHOLD')
   const [direction, setDirection] = useState<AlertDirection>('ABOVE')
   const [thresholdValue, setThresholdValue] = useState('')
+  const [shortPeriod, setShortPeriod] = useState('8')
+  const [longPeriod, setLongPeriod] = useState('50')
+  const [maType, setMaType] = useState<MAType>('SMA')
   const [recurring, setRecurring] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,15 +40,33 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
     e.preventDefault()
     setError(null)
 
-    const value = parseFloat(thresholdValue)
-    if (isNaN(value) || value <= 0) {
-      setError('Le seuil doit être un nombre positif.')
-      return
+    let payload: CreateAlertRequest = { symbol, type, direction, recurring }
+
+    if (type === 'MA_CROSSOVER') {
+      const sp = parseInt(shortPeriod, 10)
+      const lp = parseInt(longPeriod, 10)
+
+      if (isNaN(sp) || sp <= 0 || isNaN(lp) || lp <= 0) {
+        setError('Les périodes doivent être des nombres positifs.')
+        return
+      }
+      if (sp >= lp) {
+        setError('La période courte doit être inférieure à la période longue.')
+        return
+      }
+      payload = { ...payload, shortPeriod: sp, longPeriod: lp, maType }
+    } else {
+      const value = parseFloat(thresholdValue)
+      if (isNaN(value) || value <= 0) {
+        setError('Le seuil doit être un nombre positif.')
+        return
+      }
+      payload = { ...payload, thresholdValue: value }
     }
 
     setSubmitting(true)
     try {
-      await onSubmit({ symbol, type, direction, thresholdValue: value, recurring })
+      await onSubmit(payload)
       // Reset du formulaire après succès
       setThresholdValue('')
       setRecurring(false)
@@ -56,15 +77,17 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
     }
   }
 
+  const isMACross = type === 'MA_CROSSOVER'
+
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
       <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
         Nouvelle alerte pour {symbol}
       </h3>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Type : Prix / Volume */}
-        <div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Type : Prix / Volume / MA Cross */}
+        <div className="lg:col-span-1">
           <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
             Type
           </label>
@@ -72,13 +95,15 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
             {([
               { value: 'PRICE_THRESHOLD' as const, label: 'Prix' },
               { value: 'VOLUME_THRESHOLD' as const, label: 'Volume' },
+              { value: 'MA_CROSSOVER' as const, label: 'MA Cross' },
             ]).map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setType(opt.value)}
+                title={opt.label}
                 className={cn(
-                  'flex-1 px-3 py-2 text-xs font-semibold transition-colors',
+                  'flex-1 px-2 py-2 text-[10px] font-semibold transition-colors sm:text-xs',
                   type === opt.value
                     ? 'bg-primary text-white'
                     : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
@@ -90,22 +115,31 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
           </div>
         </div>
 
-        {/* Direction : Hausse / Baisse */}
-        <div>
+        {/* Direction : Hausse / Baisse ou Golden / Death Cross */}
+        <div className="lg:col-span-1">
           <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-            Direction
+            Condition
           </label>
           <div className="flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
             {([
-              { value: 'ABOVE' as const, label: 'Hausse', icon: '↑' },
-              { value: 'BELOW' as const, label: 'Baisse', icon: '↓' },
+              { 
+                value: 'ABOVE' as const, 
+                label: isMACross ? 'Golden Cross' : 'Hausse', 
+                icon: '↑' 
+              },
+              { 
+                value: 'BELOW' as const, 
+                label: isMACross ? 'Death Cross' : 'Baisse', 
+                icon: '↓' 
+              },
             ]).map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setDirection(opt.value)}
+                title={opt.label}
                 className={cn(
-                  'flex-1 px-3 py-2 text-xs font-semibold transition-colors',
+                  'flex-1 px-2 py-2 text-[10px] font-semibold transition-colors sm:text-xs',
                   direction === opt.value
                     ? opt.value === 'ABOVE'
                       ? 'bg-green-600 text-white'
@@ -113,29 +147,73 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
                     : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
                 )}
               >
-                {opt.icon} {opt.label}
+                {opt.icon} <span className="hidden sm:inline">{opt.label}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Seuil */}
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
-            Seuil
-          </label>
-          <input
-            type="number"
-            step="any"
-            value={thresholdValue}
-            onChange={(e) => setThresholdValue(e.target.value)}
-            placeholder={type === 'PRICE_THRESHOLD' ? 'Ex: 100000' : 'Ex: 1000000'}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-500 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary"
-          />
-        </div>
+        {/* Champs conditionnels */}
+        {!isMACross ? (
+          /* Seuil (Prix/Volume) */
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+              Seuil
+            </label>
+            <input
+              type="number"
+              step="any"
+              value={thresholdValue}
+              onChange={(e) => setThresholdValue(e.target.value)}
+              placeholder={type === 'PRICE_THRESHOLD' ? 'Ex: 100000' : 'Ex: 1000000'}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-500 outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500 dark:focus:border-primary"
+            />
+          </div>
+        ) : (
+          /* Paramètres MA Cross */
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Courte
+                </label>
+                <input
+                  type="number"
+                  value={shortPeriod}
+                  onChange={(e) => setShortPeriod(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Longue
+                </label>
+                <input
+                  type="number"
+                  value={longPeriod}
+                  onChange={(e) => setLongPeriod(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                Type MM
+              </label>
+              <select
+                value={maType}
+                onChange={(e) => setMaType(e.target.value as MAType)}
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              >
+                <option value="SMA">SMA (Simple)</option>
+                <option value="EMA">EMA (Exponentielle)</option>
+              </select>
+            </div>
+          </>
+        )}
 
         {/* Récurrente + bouton submit */}
-        <div className="flex flex-col justify-end gap-2">
+        <div className="flex flex-col justify-end gap-2 lg:col-span-1">
           <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
             <input
               type="checkbox"
@@ -147,10 +225,10 @@ export function AlertForm({ symbol, onSubmit }: AlertFormProps) {
           </label>
           <button
             type="submit"
-            disabled={submitting || !thresholdValue}
+            disabled={submitting || (!isMACross && !thresholdValue)}
             className={cn(
               'rounded-lg px-4 py-2 text-xs font-semibold transition-colors',
-              submitting || !thresholdValue
+              submitting || (!isMACross && !thresholdValue)
                 ? 'cursor-not-allowed bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-600'
                 : 'bg-primary text-white hover:bg-blue-700',
             )}

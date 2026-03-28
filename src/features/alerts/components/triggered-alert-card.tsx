@@ -32,11 +32,14 @@ function isToday(dateStr: string): boolean {
 }
 
 function formatAlertType(type: string): string {
-  return type === 'PRICE_THRESHOLD' ? 'Prix' : 'Volume'
+  if (type === 'PRICE_THRESHOLD') return 'Prix'
+  if (type === 'VOLUME_THRESHOLD') return 'Volume'
+  return 'MA Cross'
 }
 
 export function TriggeredAlertCard({ triggered }: TriggeredAlertCardProps) {
   const today = isToday(triggered.triggeredAt)
+  const isMACross = triggered.type === 'MA_CROSSOVER'
 
   return (
     <div className={cn(
@@ -81,16 +84,29 @@ export function TriggeredAlertCard({ triggered }: TriggeredAlertCardProps) {
               </span>
             </div>
 
-            <p className={cn(
+            <div className={cn(
               'mt-0.5 font-mono text-xs',
               today
                 ? 'text-slate-700 dark:text-slate-300'
                 : 'text-slate-400 dark:text-slate-500',
             )}>
-              Seuil : {triggered.thresholdValue.toLocaleString('fr-FR')}
-              {' → '}
-              Valeur : {triggered.triggeredValue.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
-            </p>
+              {isMACross ? (
+                <div className="flex flex-col gap-0.5">
+                  <span>
+                    {triggered.alert.maType}({triggered.alert.shortPeriod}) croise {triggered.direction === 'ABOVE' ? 'au-dessus de' : 'en-dessous de'} {triggered.alert.maType}({triggered.alert.longPeriod})
+                  </span>
+                  <span className="font-semibold">
+                    Prix : {triggered.triggeredValue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
+                  </span>
+                </div>
+              ) : (
+                <span>
+                  Seuil : {triggered.thresholdValue?.toLocaleString('fr-FR')}
+                  {' → '}
+                  Valeur : {triggered.triggeredValue.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
