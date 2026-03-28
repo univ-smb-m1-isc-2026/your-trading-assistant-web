@@ -32,9 +32,9 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createChart, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts'
-import type { ISeriesApi } from 'lightweight-charts'
-import type { Candle, MovingAverageSeries } from '@/types/api'
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
+import type { ISeriesApi, SeriesMarker, Time } from 'lightweight-charts'
+import type { Candle, MovingAverageSeries, TriggeredAlert } from '@/types/api'
 import { useThemeStore } from '@/stores/use-theme-store'
 
 /**
@@ -50,6 +50,8 @@ interface CandlestickChartProps {
   height?: number
   /** Séries de moyennes mobiles à afficher en overlay sur le chart */
   movingAverages?: MovingAverageSeries[]
+  /** Alertes déclenchées à afficher sur le graphique */
+  triggeredAlerts?: TriggeredAlert[]
 }
 
 /**
@@ -128,6 +130,7 @@ function buildTooltipHtml(
   volume: number | undefined,
   theme: 'light' | 'dark',
   maValues: Array<{ type: string; period: number; value: number | undefined; color: string }>,
+  alerts: TriggeredAlert[] = []
 ): string {
   const isUp = close >= open
   const variation = ((close - open) / open) * 100
@@ -160,6 +163,34 @@ function buildTooltipHtml(
     ? `<div style="border-top:1px solid ${dividerColor};margin-top:4px;padding-top:4px;">${maRows}</div>`
     : ''
 
+  let alertsSection = ''
+  if (alerts.length > 0) {
+    const alertsHtml = alerts.map((alert) => {
+      const isUp = alert.direction === 'ABOVE'
+      let typeLabel = ''
+      if (alert.type === 'MA_CROSSOVER') {
+        typeLabel = isUp ? 'Golden Cross' : 'Death Cross'
+      } else if (alert.type === 'PRICE_THRESHOLD') {
+        typeLabel = 'Seuil de prix'
+      } else {
+        typeLabel = 'Volume'
+      }
+      
+      const val = alert.thresholdValue !== null && alert.thresholdValue !== undefined 
+        ? ` (${formatPrice(alert.thresholdValue)})` 
+        : ''
+        
+      return `<div style="color: ${isUp ? upColor : downColor}; font-size:11px; padding: 2px 0;">
+        🔔 ${typeLabel}${val}
+      </div>`
+    }).join('')
+
+    alertsSection = `<div style="border-top:1px solid ${dividerColor}; margin-top:4px; padding-top:4px;">
+      <div style="font-size:10px; color:${labelColor}; margin-bottom:2px; text-transform:uppercase;">Alertes Déclenchées</div>
+      ${alertsHtml}
+    </div>`
+  }
+
   return `
     <div style="padding:10px 14px 8px;">
       <div style="font-size:11px;font-weight:700;color:${dateColor};margin-bottom:8px;letter-spacing:0.02em;">${formatDate(date)}</div>
@@ -173,12 +204,13 @@ function buildTooltipHtml(
           ${row('Variation', variationStr, variationColor)}
         </div>
         ${maSection}
+        ${alertsSection}
       </div>
     </div>
   `
 }
 
-export function CandlestickChart({ candles, height = 400, movingAverages = [] }: CandlestickChartProps) {
+export function CandlestickChart({ candles, height = 400, movingAverages = [], triggeredAlerts = [] }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const theme = useThemeStore((s) => s.theme)
@@ -188,6 +220,14 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [] }:
 
     const colors = getChartColors(theme)
     const tooltip = tooltipRef.current
+
+    // Préparation des alertes pour un accès rapide dans le tooltip
+    const alertsByDate = new Map<string, TriggeredAlert[]>()
+    triggeredAlerts.forEach(alert => {
+      const existing = alertsByDate.get(alert.candleDate) || []
+      existing.push(alert)
+      alertsByDate.set(alert.candleDate, existing)
+    })
 
     const chart = createChart(containerRef.current, {
       height,
@@ -259,6 +299,23 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [] }:
     }))
 
     candleSeries.setData(chartData)
+
+    if (triggeredAlerts.length > 0) {
+      // Tri par date croissant obligatoire pour lightweight-charts
+      const sortedAlerts = [...triggeredAlerts].sort(
+        (a, b) => new Date(a.candleDate).getTime() - new Date(b.candleDate).getTime()
+      )
+
+      const markers: SeriesMarker<Time>[] = sortedAlerts.map(alert => ({
+        time: alert.candleDate as Time,
+        position: alert.direction === 'ABOVE' ? 'belowBar' : 'aboveBar',
+        color: alert.direction === 'ABOVE' ? '#22c55e' : '#ef4444',
+        shape: 'circle',
+        size: 1,
+      }))
+
+      createSeriesMarkers(candleSeries, markers)
+    }
 
     // ─── Moyennes Mobiles (LineSeries overlay) ──────────────────────────────
     //
@@ -365,8 +422,11 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [] }:
         color: entry.color,
       }))
 
+      // Récupérer les alertes à cette date
+      const alerts = alertsByDate.get(dateStr) || []
+
       // Remplir le contenu du tooltip
-      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues)
+      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues, alerts)
 
       // ─── Positionnement intelligent ──────────────────────────────────────────
       const OFFSET_X = 14

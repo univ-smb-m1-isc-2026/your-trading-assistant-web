@@ -272,7 +272,7 @@ export function AssetDetailPage() {
             </p>
           )}
 
-          <CandlestickChart candles={candles} height={480} movingAverages={maSeries} />
+          <CandlestickChart candles={candles} height={480} movingAverages={maSeries} triggeredAlerts={assetTriggered} />
         </div>
       )}
 
