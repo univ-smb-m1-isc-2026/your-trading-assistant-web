@@ -32,7 +32,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
+import { createChart, CandlestickSeries, LineSeries, HistogramSeries } from 'lightweight-charts'
 import type { ISeriesApi } from 'lightweight-charts'
 import type { Candle, MovingAverageSeries } from '@/types/api'
 import { useThemeStore } from '@/stores/use-theme-store'
@@ -204,12 +204,41 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [] }:
       },
       rightPriceScale: {
         borderColor: colors.border,
+        scaleMargins: {
+          top: 0.1, // Laisse 10% d'espace en haut
+          bottom: 0.25, // Laisse 25% d'espace en bas pour le volume
+        },
       },
       timeScale: {
         borderColor: colors.border,
         timeVisible: true,
       },
     })
+
+    // ─── Volume (HistogramSeries au bas du chart) ───────────────────────────
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume', // Échelle de prix séparée
+    })
+
+    // Configuration de l'échelle du volume : occupe les 20% inférieurs du chart
+    chart.priceScale('volume').applyOptions({
+      scaleMargins: {
+        top: 0.8, // Les barres commencent à 80% de la hauteur totale
+        bottom: 0,
+      },
+    })
+
+    const volumeData = candles.map((c) => ({
+      time: c.date as `${number}-${number}-${number}`,
+      value: c.volume,
+      // Couleur : vert si hausse, rouge si baisse (avec opacité)
+      color: c.close >= c.open 
+        ? theme === 'dark' ? 'rgba(34, 197, 94, 0.5)' : 'rgba(34, 197, 94, 0.4)'
+        : theme === 'dark' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(239, 68, 68, 0.4)',
+    }))
+
+    volumeSeries.setData(volumeData)
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
