@@ -111,7 +111,7 @@ export function Sidebar() {
       {/* Footer sidebar — version */}
       <div className="border-t border-slate-300 p-3 dark:border-slate-800">
         <p className="text-center text-[10px] text-slate-600 dark:text-slate-600">
-          v0.1.0 — Beta
+          v0.2.0 — Beta
         </p>
       </div>
     </aside>
