@@ -95,6 +95,7 @@ export function AssetDetailPage() {
   const [activePeriods, setActivePeriods] = useState<Set<number>>(new Set([8, 50]))
 
   // ─── Alertes pour cet asset ─────────────────────────────────────────────
+  const [activeAlertTab, setActiveAlertTab] = useState<'new' | 'active' | 'history'>('new')
   const {
     assetAlerts,
     assetTriggered,
@@ -173,8 +174,11 @@ export function AssetDetailPage() {
       </div>
 
       {/* Corps principal */}
-      {loading && (
-        <div className="flex items-center justify-center py-24">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        {/* Colonne de gauche : Graphique et contrôles */}
+        <div className="min-w-0 flex-1 space-y-4">
+          {loading && (
+            <div className="flex items-center justify-center py-24">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-700 dark:border-t-primary" />
             <p className="text-sm text-slate-600 dark:text-slate-400">Chargement du graphique...</p>
@@ -275,49 +279,95 @@ export function AssetDetailPage() {
           <CandlestickChart candles={candles} height={480} movingAverages={maSeries} triggeredAlerts={assetTriggered} />
         </div>
       )}
+        </div>
 
-      {/* ─── Section Alertes ────────────────────────────────────────────── */}
-      {!loading && !error && symbol && (
-        <>
-          {/* Formulaire de création d'alerte — toujours visible (inline) */}
-          <div className="mt-6 rounded-xl border border-slate-300 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <AlertForm symbol={symbol} onSubmit={createAlert} />
-          </div>
+        {/* Colonne de droite : Alertes (Sticky sur desktop) */}
+        {!loading && !error && symbol && (
+          <div className="w-full shrink-0 lg:sticky lg:top-6 lg:w-[360px] xl:w-[400px]">
+            <div className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Alertes</h2>
 
-          {/* Alertes actives pour cet asset */}
-          {assetAlerts.length > 0 && (
-            <div className="mt-6">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
-                Alertes configurées ({assetAlerts.length})
-              </h3>
-              <div className="space-y-2">
-                {assetAlerts.map((alert) => (
-                  <AlertCard
-                    key={alert.id}
-                    alert={alert}
-                    onUpdate={updateAlert}
-                    onDelete={removeAlert}
+              {/* Onglets de navigation */}
+              <div className="mb-5 flex rounded-lg bg-slate-100 p-1 dark:bg-slate-800/50">
+                {(['new', 'active', 'history'] as const).map((tab) => {
+                  const labels = {
+                    new: 'Nouvelle',
+                    active: `Actives (${assetAlerts.length})`,
+                    history: `Histo. (${assetTriggered.length})`,
+                  }
+                  const isActive = activeAlertTab === tab
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveAlertTab(tab)}
+                      className={cn(
+                        'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200',
+                        isActive
+                          ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                          : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
+                      )}
+                    >
+                      {labels[tab]}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Contenu de l'onglet actif */}
+              <div className="min-h-[300px]">
+                {activeAlertTab === 'new' && (
+                  <AlertForm
+                    symbol={symbol}
+                    onSubmit={async (data) => {
+                      await createAlert(data)
+                      setActiveAlertTab('active')
+                    }}
                   />
-                ))}
-              </div>
-            </div>
-          )}
+                )}
 
-          {/* Historique des déclenchements pour cet asset */}
-          {assetTriggered.length > 0 && (
-            <div className="mt-6">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
-                Déclenchements ({assetTriggered.length})
-              </h3>
-              <div className="space-y-2">
-                {assetTriggered.map((triggered) => (
-                  <TriggeredAlertCard key={triggered.id} triggered={triggered} />
-                ))}
+                {activeAlertTab === 'active' && (
+                  <div className="space-y-3">
+                    {assetAlerts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <svg className="mb-2 h-8 w-8 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Aucune alerte active.</p>
+                      </div>
+                    ) : (
+                      assetAlerts.map((alert) => (
+                        <AlertCard
+                          key={alert.id}
+                          alert={alert}
+                          onUpdate={updateAlert}
+                          onDelete={removeAlert}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {activeAlertTab === 'history' && (
+                  <div className="space-y-3">
+                    {assetTriggered.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <svg className="mb-2 h-8 w-8 text-slate-400 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Aucun historique récent.</p>
+                      </div>
+                    ) : (
+                      assetTriggered.map((triggered) => (
+                        <TriggeredAlertCard key={triggered.id} triggered={triggered} />
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
