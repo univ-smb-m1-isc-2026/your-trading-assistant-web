@@ -23,10 +23,11 @@
  *   même tri par période croissante que dans candlestick-chart.tsx.
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCandles } from '../hooks/use-candles'
 import { useMovingAverages } from '../hooks/use-moving-averages'
+import { useChartPatterns } from '../hooks/use-chart-patterns'
 import { CandlestickChart } from '@/components/ui/candlestick-chart'
 import { AlertForm, AlertCard, TriggeredAlertCard, useAssetAlerts } from '@/features/alerts'
 import { cn } from '@/utils/cn'
@@ -93,6 +94,37 @@ export function AssetDetailPage() {
   // ─── État des contrôles MA ──────────────────────────────────────────────
   const [maType, setMaType] = useState<'SMA' | 'EMA'>('SMA')
   const [activePeriods, setActivePeriods] = useState<Set<number>>(new Set([8, 50]))
+
+  // ─── Figures Chartistes ─────────────────────────────────────────────────
+  const { patterns, loading: patternsLoading } = useChartPatterns(symbol ?? '')
+  
+  // Liste des figures activées par défaut
+  const DEFAULT_PATTERNS = ['MORNING_STAR', 'SHOOTING_STAR', 'HAMMER', 'EVENING_STAR']
+  const [activePatternTypes, setActivePatternTypes] = useState<Set<string>>(new Set(DEFAULT_PATTERNS))
+
+  // Déduire les types disponibles (tous ceux renvoyés par l'API)
+  const availablePatternTypes = useMemo(() => {
+    return Array.from(new Set(patterns.map(p => p.type))).sort()
+  }, [patterns])
+
+  // (Supprimé : le useEffect qui activait tout par défaut a été retiré,
+  // on se fie désormais à DEFAULT_PATTERNS)
+
+  const togglePatternType = useCallback((type: string) => {
+    setActivePatternTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        next.delete(type)
+      } else {
+        next.add(type)
+      }
+      return next
+    })
+  }, [])
+
+  const activePatterns = useMemo(() => {
+    return patterns.filter(p => activePatternTypes.has(p.type))
+  }, [patterns, activePatternTypes])
 
   // ─── Alertes pour cet asset ─────────────────────────────────────────────
   const [activeAlertTab, setActiveAlertTab] = useState<'new' | 'active' | 'history'>('new')
@@ -214,59 +246,118 @@ export function AssetDetailPage() {
             </p>
           </div>
 
-          {/* ─── Barre de contrôle Moyennes Mobiles ─────────────────────────
-               Deux groupes : type (SMA/EMA) et périodes (20/50/200).
-               Le type actif a un fond primary, les périodes actives ont
-               la couleur de leur ligne MA respective.
-            ──────────────────────────────────────────────────────────────── */}
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            {/* Sélecteur SMA / EMA */}
-            <div className="flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
-              {(['SMA', 'EMA'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setMaType(t)}
-                  className={cn(
-                    'px-3 py-1.5 text-xs font-semibold transition-colors',
-                    maType === t
-                      ? 'bg-primary text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
+          {/* ─── Contrôles : Indicateurs & Figures ────────────────────────── */}
+          <div className="mb-4 rounded-xl border border-slate-300 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+            <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">
+              Indicateurs & Figures
+            </h3>
+            
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+              {/* --- Section MA --- */}
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">Moyennes Mobiles</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
+                    {(['SMA', 'EMA'] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setMaType(t)}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-semibold transition-colors',
+                          maType === t
+                            ? 'bg-primary text-white'
+                            : 'bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {AVAILABLE_PERIODS.map((period) => {
+                      const isActive = activePeriods.has(period)
+                      const color = getColorForPeriod(period)
+
+                      return (
+                        <button
+                          key={period}
+                          onClick={() => togglePeriod(period)}
+                          className={cn(
+                            'rounded-md px-2.5 py-1 text-xs font-bold tabular-nums transition-colors',
+                            isActive
+                              ? 'text-white'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-900 dark:text-slate-500 dark:hover:bg-slate-700',
+                          )}
+                          style={isActive ? { backgroundColor: color } : undefined}
+                        >
+                          {period}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {maLoading && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-600 dark:border-t-primary" />
                   )}
-                >
-                  {t}
-                </button>
-              ))}
+                </div>
+              </div>
+
+              {/* --- Section Figures Chartistes --- */}
+              <div className="flex flex-col gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400">Figures Détectées</span>
+                <div className="flex min-h-[32px] flex-wrap items-center gap-2">
+                  {patternsLoading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-600 dark:border-t-primary" />
+                  ) : availablePatternTypes.length === 0 ? (
+                    <span className="text-xs text-slate-400 dark:text-slate-500">Aucune figure</span>
+                  ) : (
+                    <>
+                      {/* Select déguisé en bouton "+ Ajouter" */}
+                      {availablePatternTypes.filter((t) => !activePatternTypes.has(t)).length > 0 && (
+                        <select
+                          className="cursor-pointer appearance-none rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              togglePatternType(e.target.value)
+                              e.target.value = '' // reset après sélection
+                            }
+                          }}
+                          value=""
+                        >
+                          <option value="" disabled hidden>
+                            + Ajouter
+                          </option>
+                          {availablePatternTypes
+                            .filter((type) => !activePatternTypes.has(type))
+                            .map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+
+                      {/* Chips des figures actives */}
+                      {Array.from(activePatternTypes).map((type) => (
+                          <div
+                            key={type}
+                            className="flex items-center gap-1.5 rounded-md border border-slate-300 bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                          >
+                            <span>{type}</span>
+                            <button
+                              onClick={() => togglePatternType(type)}
+                              className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                              aria-label={`Supprimer ${type}`}
+                              title="Supprimer"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
-
-            {/* Séparateur vertical */}
-            <div className="h-6 w-px bg-slate-300 dark:bg-slate-700" />
-
-            {/* Badges de périodes */}
-            {AVAILABLE_PERIODS.map((period) => {
-              const isActive = activePeriods.has(period)
-              const color = getColorForPeriod(period)
-
-              return (
-                <button
-                  key={period}
-                  onClick={() => togglePeriod(period)}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-xs font-bold tabular-nums transition-colors',
-                    isActive
-                      ? 'text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700',
-                  )}
-                  style={isActive ? { backgroundColor: color } : undefined}
-                >
-                  {period}
-                </button>
-              )
-            })}
-
-            {/* Indicateur de chargement MA (discret, ne bloque pas le chart) */}
-            {maLoading && (
-              <div className="ml-1 h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-primary dark:border-slate-600 dark:border-t-primary" />
-            )}
           </div>
 
           {/* Erreur MA (non-bloquante : le chart reste visible) */}
@@ -276,7 +367,7 @@ export function AssetDetailPage() {
             </p>
           )}
 
-          <CandlestickChart candles={candles} height={480} movingAverages={maSeries} triggeredAlerts={assetTriggered} />
+          <CandlestickChart candles={candles} height={480} movingAverages={maSeries} triggeredAlerts={assetTriggered} chartPatterns={activePatterns} />
         </div>
       )}
         </div>

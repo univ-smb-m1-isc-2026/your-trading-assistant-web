@@ -199,3 +199,13 @@ export interface UpdateAlertRequest {
   recurring?: boolean
   active?: boolean
 }
+
+// --- Figures Chartistes ---
+
+export interface ChartPattern {
+  id: number
+  assetSymbol: string
+  type: string
+  category: 'BULLISH' | 'BEARISH' | string
+  date: string
+}

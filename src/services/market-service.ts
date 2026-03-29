@@ -7,7 +7,7 @@
  */
 
 import { apiClient } from './api-client'
-import type { Asset, Candle, MovingAverageSeries } from '@/types/api'
+import type { Asset, Candle, MovingAverageSeries, ChartPattern } from '@/types/api'
 
 /**
  * Récupère la liste de tous les assets disponibles.
@@ -82,4 +82,16 @@ export async function getMovingAverages(
   return apiClient.request<MovingAverageSeries[]>(
     `/assets/${symbol}/moving-averages?${params.toString()}`,
   )
+}
+
+// --- Figures Chartistes ---
+
+/**
+ * Récupère les figures chartistes d'un asset donné.
+ * GET /assets/{symbol}/patterns — nécessite un JWT valide.
+ *
+ * @param symbol - Le ticker de l'asset (ex: "BTC")
+ */
+export async function getChartPatterns(symbol: string): Promise<ChartPattern[]> {
+  return apiClient.request<ChartPattern[]>(`/assets/${symbol}/patterns`)
 }

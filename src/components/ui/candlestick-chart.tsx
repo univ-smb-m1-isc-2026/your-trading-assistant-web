@@ -34,7 +34,7 @@
 import { useEffect, useRef } from 'react'
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
 import type { ISeriesApi, SeriesMarker, Time } from 'lightweight-charts'
-import type { Candle, MovingAverageSeries, TriggeredAlert } from '@/types/api'
+import type { Candle, MovingAverageSeries, TriggeredAlert, ChartPattern } from '@/types/api'
 import { useThemeStore } from '@/stores/use-theme-store'
 
 /**
@@ -52,6 +52,8 @@ interface CandlestickChartProps {
   movingAverages?: MovingAverageSeries[]
   /** Alertes déclenchées à afficher sur le graphique */
   triggeredAlerts?: TriggeredAlert[]
+  /** Figures chartistes (patterns) */
+  chartPatterns?: ChartPattern[]
 }
 
 /**
@@ -130,7 +132,8 @@ function buildTooltipHtml(
   volume: number | undefined,
   theme: 'light' | 'dark',
   maValues: Array<{ type: string; period: number; value: number | undefined; color: string }>,
-  alerts: TriggeredAlert[] = []
+  alerts: TriggeredAlert[] = [],
+  patterns: ChartPattern[] = []
 ): string {
   const isUp = close >= open
   const variation = ((close - open) / open) * 100
@@ -191,6 +194,21 @@ function buildTooltipHtml(
     </div>`
   }
 
+  let patternsSection = ''
+  if (patterns.length > 0) {
+    const patternsHtml = patterns.map((p) => {
+      const isBullish = p.category === 'BULLISH'
+      return `<div style="color: ${isBullish ? upColor : downColor}; font-size:11px; padding: 2px 0;">
+        ${isBullish ? '📈' : '📉'} ${p.type.replace(/_/g, ' ')}
+      </div>`
+    }).join('')
+
+    patternsSection = `<div style="border-top:1px solid ${dividerColor}; margin-top:4px; padding-top:4px;">
+      <div style="font-size:10px; color:${labelColor}; margin-bottom:2px; text-transform:uppercase;">Figures Chartistes</div>
+      ${patternsHtml}
+    </div>`
+  }
+
   return `
     <div style="padding:10px 14px 8px;">
       <div style="font-size:11px;font-weight:700;color:${dateColor};margin-bottom:8px;letter-spacing:0.02em;">${formatDate(date)}</div>
@@ -205,12 +223,13 @@ function buildTooltipHtml(
         </div>
         ${maSection}
         ${alertsSection}
+        ${patternsSection}
       </div>
     </div>
   `
 }
 
-export function CandlestickChart({ candles, height = 400, movingAverages = [], triggeredAlerts = [] }: CandlestickChartProps) {
+export function CandlestickChart({ candles, height = 400, movingAverages = [], triggeredAlerts = [], chartPatterns = [] }: CandlestickChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const theme = useThemeStore((s) => s.theme)
@@ -228,6 +247,16 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       existing.push(alert)
       alertsByDate.set(alert.candleDate, existing)
     })
+
+    // Préparation des figures chartistes pour un accès rapide dans le tooltip
+    const patternsByDate = new Map<string, ChartPattern[]>()
+    if (Array.isArray(chartPatterns)) {
+      chartPatterns.forEach(pattern => {
+        const existing = patternsByDate.get(pattern.date) || []
+        existing.push(pattern)
+        patternsByDate.set(pattern.date, existing)
+      })
+    }
 
     const chart = createChart(containerRef.current, {
       height,
@@ -300,20 +329,36 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
 
     candleSeries.setData(chartData)
 
+    const markers: SeriesMarker<Time>[] = []
+
     if (triggeredAlerts.length > 0) {
+      triggeredAlerts.forEach((alert) => {
+        markers.push({
+          time: alert.candleDate as Time,
+          position: alert.direction === 'ABOVE' ? 'belowBar' : 'aboveBar',
+          color: alert.direction === 'ABOVE' ? '#22c55e' : '#ef4444',
+          shape: 'circle',
+          size: 1,
+        })
+      })
+    }
+
+    if (Array.isArray(chartPatterns) && chartPatterns.length > 0) {
+      chartPatterns.forEach((pattern) => {
+        const isBullish = pattern.category === 'BULLISH'
+        markers.push({
+          time: pattern.date as Time,
+          position: isBullish ? 'belowBar' : 'aboveBar',
+          color: isBullish ? '#22c55e' : '#ef4444',
+          shape: isBullish ? 'arrowUp' : 'arrowDown',
+          size: 1,
+        })
+      })
+    }
+
+    if (markers.length > 0) {
       // Tri par date croissant obligatoire pour lightweight-charts
-      const sortedAlerts = [...triggeredAlerts].sort(
-        (a, b) => new Date(a.candleDate).getTime() - new Date(b.candleDate).getTime()
-      )
-
-      const markers: SeriesMarker<Time>[] = sortedAlerts.map(alert => ({
-        time: alert.candleDate as Time,
-        position: alert.direction === 'ABOVE' ? 'belowBar' : 'aboveBar',
-        color: alert.direction === 'ABOVE' ? '#22c55e' : '#ef4444',
-        shape: 'circle',
-        size: 1,
-      }))
-
+      markers.sort((a, b) => new Date(a.time as string).getTime() - new Date(b.time as string).getTime())
       createSeriesMarkers(candleSeries, markers)
     }
 
@@ -364,6 +409,8 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
 
       return { type: ma.type, period: ma.period, color, series: lineSeries, valueByDate }
     })
+
+
 
     chart.timeScale().fitContent()
 
@@ -425,8 +472,11 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       // Récupérer les alertes à cette date
       const alerts = alertsByDate.get(dateStr) || []
 
+      // Récupérer les figures à cette date
+      const patterns = patternsByDate.get(dateStr) || []
+
       // Remplir le contenu du tooltip
-      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues, alerts)
+      tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues, alerts, patterns)
 
       // ─── Positionnement intelligent ──────────────────────────────────────────
       const OFFSET_X = 14
@@ -462,7 +512,7 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       chart.remove()
       tooltip.style.display = 'none'
     }
-  }, [candles, height, theme, movingAverages])
+  }, [candles, height, theme, movingAverages, triggeredAlerts, chartPatterns])
 
   // Styles du tooltip — définis inline car ils sont fixes (non conditionnels)
   // et doivent être appliqués avant que le JS du chart les modifie.
