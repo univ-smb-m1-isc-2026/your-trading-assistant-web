@@ -1,15 +1,74 @@
 import { useEffect, useState } from 'react'
-import { getAiHealth } from '@/services/ai-service'
-import type { AiHealthResponse } from '@/services/ai-service'
+import { getAiHealth, getAiTestReport } from '@/services/ai-service'
+import type {
+  AiHealthResponse,
+  AiTestReportExample,
+  AiTestReportResponse,
+} from '@/services/ai-service'
+
+function signedPct(value: number): string {
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+}
+
+function ExamplesTable({
+  title,
+  rows,
+}: {
+  title: string
+  rows: AiTestReportExample[]
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h3>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Aucune ligne.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+      <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">{title}</h3>
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+            <tr>
+              <th className="px-3 py-2 text-left">Date</th>
+              <th className="px-3 py-2 text-left">Ticker</th>
+              <th className="px-3 py-2 text-right">Prédit</th>
+              <th className="px-3 py-2 text-right">Réel</th>
+              <th className="px-3 py-2 text-right">Écart (pp)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
+            {rows.slice(0, 10).map((row) => (
+              <tr key={`${title}-${row.date}-${row.ticker}-${row.abs_error_pp}`}>
+                <td className="px-3 py-2">{row.date}</td>
+                <td className="px-3 py-2 font-medium">{row.ticker}</td>
+                <td className="px-3 py-2 text-right">{signedPct(row.predicted_pct)}</td>
+                <td className="px-3 py-2 text-right">{signedPct(row.actual_pct)}</td>
+                <td className="px-3 py-2 text-right">{row.abs_error_pp.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 export function SignalsPage() {
   const [health, setHealth] = useState<AiHealthResponse | null>(null)
+  const [report, setReport] = useState<AiTestReportResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getAiHealth()
-      .then(setHealth)
+    Promise.all([getAiHealth(), getAiTestReport()])
+      .then(([healthRes, reportRes]) => {
+        setHealth(healthRes)
+        setReport(reportRes)
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
   }, [])
@@ -58,6 +117,59 @@ export function SignalsPage() {
           <p><span className="font-medium">Features :</span> 22 indicateurs techniques (RSI, MACD, Bollinger, ATR, etc.)</p>
         </div>
       </div>
+
+      {/* Résultats de test (test.log) */}
+      {report && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+            Résultats du test modèle (test.log)
+          </h2>
+
+          <div className="mt-3 grid gap-3 text-sm text-slate-600 dark:text-slate-400 md:grid-cols-2">
+            <p><span className="font-medium">Lignes de test :</span> {report.summary.test_rows}</p>
+            <p><span className="font-medium">MAE :</span> ±{report.summary.mae_pct.toFixed(2)}%</p>
+            <p><span className="font-medium">RMSE :</span> {report.summary.rmse_pct.toFixed(2)}%</p>
+            <p><span className="font-medium">R² :</span> {report.summary.r2.toFixed(4)}</p>
+            <p>
+              <span className="font-medium">Direction correcte :</span>{' '}
+              {report.summary.direction_success}/{report.summary.direction_total}{' '}
+              ({report.summary.direction_accuracy_pct.toFixed(1)}%)
+            </p>
+            <p>
+              <span className="font-medium">Pires / meilleures lignes :</span>{' '}
+              {report.summary.worst_count} / {report.summary.best_count}
+            </p>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+                <tr>
+                  <th className="px-3 py-2 text-left">Marge (pp)</th>
+                  <th className="px-3 py-2 text-right">Réussite</th>
+                  <th className="px-3 py-2 text-right">Taux</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
+                {report.precision_table.map((row) => (
+                  <tr key={row.margin_pp}>
+                    <td className="px-3 py-2">± {row.margin_pp} pp</td>
+                    <td className="px-3 py-2 text-right">{row.success}/{row.total}</td>
+                    <td className="px-3 py-2 text-right">{row.rate_pct.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {report && (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <ExamplesTable title="Pires prédictions" rows={report.worst_examples} />
+          <ExamplesTable title="Meilleures prédictions" rows={report.best_examples} />
+        </div>
+      )}
     </div>
   )
 }
