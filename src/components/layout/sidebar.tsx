@@ -105,7 +105,7 @@ export function Sidebar() {
         <SidebarItem to="/dashboard" label="Marchés" icon={<IconChart />} />
         <SidebarItem to="/favorites" label="Favoris" icon={<IconStar />} />
         <SidebarItem to="/alerts" label="Alertes" icon={<IconBell />} />
-        <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} disabled />
+        <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} />
       </nav>
 
       {/* Footer sidebar — version */}
