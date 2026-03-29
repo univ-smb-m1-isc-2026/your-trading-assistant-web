@@ -95,6 +95,15 @@ function IconBrain() {
   )
 }
 
+function IconShapes() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4.5 3h15a1.5 1.5 0 011.5 1.5v15a1.5 1.5 0 01-1.5 1.5h-15a1.5 1.5 0 01-1.5-1.5v-15A1.5 1.5 0 014.5 3z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 8l-4 8h8l-4-8z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-slate-300 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -105,6 +114,7 @@ export function Sidebar() {
         <SidebarItem to="/dashboard" label="Marchés" icon={<IconChart />} />
         <SidebarItem to="/favorites" label="Favoris" icon={<IconStar />} />
         <SidebarItem to="/alerts" label="Alertes" icon={<IconBell />} />
+        <SidebarItem to="/patterns" label="Figures" icon={<IconShapes />} />
         <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} disabled />
       </nav>
 

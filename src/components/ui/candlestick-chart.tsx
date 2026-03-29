@@ -34,7 +34,7 @@
 import { useEffect, useRef } from 'react'
 import { createChart, CandlestickSeries, LineSeries, HistogramSeries, createSeriesMarkers } from 'lightweight-charts'
 import type { ISeriesApi, SeriesMarker, Time } from 'lightweight-charts'
-import type { Candle, MovingAverageSeries, TriggeredAlert, ChartPattern } from '@/types/api'
+import type { Candle, MovingAverageSeries, TriggeredAlert, ChartPatternDetail } from '@/types/api'
 import { useThemeStore } from '@/stores/use-theme-store'
 
 /**
@@ -52,8 +52,8 @@ interface CandlestickChartProps {
   movingAverages?: MovingAverageSeries[]
   /** Alertes déclenchées à afficher sur le graphique */
   triggeredAlerts?: TriggeredAlert[]
-  /** Figures chartistes (patterns) */
-  chartPatterns?: ChartPattern[]
+  /** Figures chartistes (patterns) avec lignes */
+  chartPatterns?: ChartPatternDetail[]
 }
 
 /**
@@ -133,7 +133,7 @@ function buildTooltipHtml(
   theme: 'light' | 'dark',
   maValues: Array<{ type: string; period: number; value: number | undefined; color: string }>,
   alerts: TriggeredAlert[] = [],
-  patterns: ChartPattern[] = []
+  patterns: ChartPatternDetail[] = []
 ): string {
   const isUp = close >= open
   const variation = ((close - open) / open) * 100
@@ -197,9 +197,8 @@ function buildTooltipHtml(
   let patternsSection = ''
   if (patterns.length > 0) {
     const patternsHtml = patterns.map((p) => {
-      const isBullish = p.category === 'BULLISH'
-      return `<div style="color: ${isBullish ? upColor : downColor}; font-size:11px; padding: 2px 0;">
-        ${isBullish ? '📈' : '📉'} ${p.type.replace(/_/g, ' ')}
+      return `<div style="color: ${labelColor}; font-size:11px; padding: 2px 0;">
+        📐 ${p.type.replace(/_/g, ' ')}
       </div>`
     }).join('')
 
@@ -249,12 +248,24 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
     })
 
     // Préparation des figures chartistes pour un accès rapide dans le tooltip
-    const patternsByDate = new Map<string, ChartPattern[]>()
+    const patternsByDate = new Map<string, ChartPatternDetail[]>()
     if (Array.isArray(chartPatterns)) {
       chartPatterns.forEach(pattern => {
-        const existing = patternsByDate.get(pattern.date) || []
-        existing.push(pattern)
-        patternsByDate.set(pattern.date, existing)
+        // Toujours indexer par la date principale du pattern
+        const dateExist = patternsByDate.get(pattern.date) || []
+        if (!dateExist.includes(pattern)) dateExist.push(pattern)
+        patternsByDate.set(pattern.date, dateExist)
+
+        // Si des lignes sont présentes, indexer aussi par les dates de début/fin des lignes
+        pattern.lines?.forEach(line => {
+          const startExist = patternsByDate.get(line.start.date) || []
+          if (!startExist.includes(pattern)) startExist.push(pattern)
+          patternsByDate.set(line.start.date, startExist)
+
+          const endExist = patternsByDate.get(line.end.date) || []
+          if (!endExist.includes(pattern)) endExist.push(pattern)
+          patternsByDate.set(line.end.date, endExist)
+        })
       })
     }
 
@@ -329,10 +340,11 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
 
     candleSeries.setData(chartData)
 
+    // ─── Marqueurs (Alertes & Patterns sans lignes) ────────────────────────
     const markers: SeriesMarker<Time>[] = []
 
     if (triggeredAlerts.length > 0) {
-      triggeredAlerts.forEach((alert) => {
+      triggeredAlerts.forEach(alert => {
         markers.push({
           time: alert.candleDate as Time,
           position: alert.direction === 'ABOVE' ? 'belowBar' : 'aboveBar',
@@ -343,34 +355,38 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       })
     }
 
-    if (Array.isArray(chartPatterns) && chartPatterns.length > 0) {
-      chartPatterns.forEach((pattern) => {
-        const isBullish = pattern.category === 'BULLISH'
-        markers.push({
-          time: pattern.date as Time,
-          position: isBullish ? 'belowBar' : 'aboveBar',
-          color: isBullish ? '#22c55e' : '#ef4444',
-          shape: isBullish ? 'arrowUp' : 'arrowDown',
-          size: 1,
-        })
+    if (chartPatterns.length > 0) {
+      chartPatterns.forEach(pattern => {
+        // Si le pattern n'a pas de lignes, on l'affiche via un marqueur
+        if (!pattern.lines || pattern.lines.length === 0) {
+          markers.push({
+            time: pattern.date as Time,
+            position: pattern.category === 'BULLISH' ? 'belowBar' : (pattern.category === 'BEARISH' ? 'aboveBar' : 'inBar'),
+            color: pattern.category === 'BULLISH' ? '#22c55e' : (pattern.category === 'BEARISH' ? '#ef4444' : '#94a3b8'),
+            shape: pattern.category === 'BULLISH' ? 'arrowUp' : (pattern.category === 'BEARISH' ? 'arrowDown' : 'square'),
+            text: pattern.type.split('_').map(w => w[0]).join(''), // Initiales
+          })
+        }
       })
     }
 
     if (markers.length > 0) {
       // Tri par date croissant obligatoire pour lightweight-charts
-      markers.sort((a, b) => new Date(a.time as string).getTime() - new Date(b.time as string).getTime())
+      markers.sort((a, b) => {
+        const getTime = (t: any) => {
+          if (typeof t === 'string') return new Date(t).getTime()
+          if (typeof t === 'number') return t
+          if (t && typeof t === 'object' && 'year' in t) {
+            return new Date(t.year, t.month - 1, t.day).getTime()
+          }
+          return 0
+        }
+        return getTime(a.time) - getTime(b.time)
+      })
       createSeriesMarkers(candleSeries, markers)
     }
 
     // ─── Moyennes Mobiles (LineSeries overlay) ──────────────────────────────
-    //
-    // Chaque MovingAverageSeries génère une LineSeries avec une couleur
-    // attribuée par index. Les séries sont triées par période croissante
-    // pour que les couleurs soient stables (bleu = plus courte, etc.).
-    //
-    // On stocke les séries dans un tableau pour pouvoir récupérer leurs
-    // valeurs dans le callback crosshairMove.
-
     const sortedMA = [...movingAverages].sort((a, b) => a.period - b.period)
 
     interface MaSeriesEntry {
@@ -382,16 +398,12 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
     }
 
     const maSeriesEntries: MaSeriesEntry[] = sortedMA.map((ma, index) => {
-      // Si le parent a fourni une couleur (via MovingAverageSeries.color),
-      // on l'utilise directement. Sinon, fallback sur la couleur par rang.
       const color = ma.color ?? getMaColor(index)
 
       const lineSeries = chart.addSeries(LineSeries, {
         color,
         lineWidth: 2,
-        // Pas d'axe de prix dédié — partage l'axe du candlestick
         priceLineVisible: false,
-        // Pas de label de prix sur l'axe droit pour éviter l'encombrement
         lastValueVisible: false,
       })
 
@@ -402,7 +414,6 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
 
       lineSeries.setData(lineData)
 
-      // Lookup Map pour le tooltip : date → valeur MA
       const valueByDate = new Map<string, number>(
         ma.values.map((v) => [v.date, v.value]),
       )
@@ -410,30 +421,35 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       return { type: ma.type, period: ma.period, color, series: lineSeries, valueByDate }
     })
 
-
+    // --- Figures Chartistes (LineSeries overlay en pointillés) ---
+    chartPatterns.forEach((pattern) => {
+      pattern.lines?.forEach((line) => {
+        const lineSeries = chart.addSeries(LineSeries, {
+          color: theme === 'dark' ? '#cbd5e1' : '#475569',
+          lineWidth: 2,
+          lineStyle: 2, // LineStyle.Dashed
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        })
+        
+        const points = [line.start, line.end].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        )
+        
+        lineSeries.setData([
+          { time: points[0].date as Time, value: points[0].value },
+          { time: points[1].date as Time, value: points[1].value }
+        ])
+      })
+    })
 
     chart.timeScale().fitContent()
 
-    // Lookup Map : date string → Candle complet (pour récupérer le volume)
     const candleByDate = new Map<string, Candle>(candles.map((c) => [c.date, c]))
-
-    // Dimensions du container pour la logique de positionnement
     const containerWidth = containerRef.current.clientWidth
 
-    // ─── Tooltip via subscribeCrosshairMove ───────────────────────────────────
-    //
-    // POURQUOI DOM DIRECT et pas useState ?
-    //   subscribeCrosshairMove fire à ~60fps pendant le survol.
-    //   Chaque setState déclencherait un re-render React complet → jank visuel.
-    //   En manipulant directement le div via un ref, on reste dans le cycle de
-    //   vie de lightweight-charts, sans impacter le cycle de React.
-    //
-    // POURQUOI pointer-events: none sur le tooltip ?
-    //   Le div overlay est positionné par-dessus le canvas. Sans pointer-events:none
-    //   il absorberait les events souris et le chart ne recevrait plus rien.
-
     chart.subscribeCrosshairMove((param) => {
-      // Masquer si la souris sort du chart ou si pas de donnée sous le curseur
       if (
         !param.point ||
         param.point.x < 0 ||
@@ -444,7 +460,6 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
         return
       }
 
-      // Récupérer les données OHLC depuis la Map interne du chart
       const rawData = param.seriesData.get(candleSeries)
       if (!rawData || !('open' in rawData)) {
         tooltip.style.display = 'none'
@@ -461,7 +476,6 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       const dateStr = param.time as string
       const volume = candleByDate.get(dateStr)?.volume
 
-      // Récupérer les valeurs MA à cette date
       const maValues = maSeriesEntries.map((entry) => ({
         type: entry.type,
         period: entry.period,
@@ -469,16 +483,11 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
         color: entry.color,
       }))
 
-      // Récupérer les alertes à cette date
       const alerts = alertsByDate.get(dateStr) || []
-
-      // Récupérer les figures à cette date
       const patterns = patternsByDate.get(dateStr) || []
 
-      // Remplir le contenu du tooltip
       tooltip.innerHTML = buildTooltipHtml(dateStr, open, high, low, close, volume, theme, maValues, alerts, patterns)
 
-      // ─── Positionnement intelligent ──────────────────────────────────────────
       const OFFSET_X = 14
       const OFFSET_Y = -8
       const tooltipW = tooltip.offsetWidth
@@ -487,17 +496,14 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       let left = param.point.x + OFFSET_X
       let top = param.point.y + OFFSET_Y
 
-      // Si le tooltip déborde à droite → le placer à gauche du curseur
       if (left + tooltipW > containerWidth - 8) {
         left = param.point.x - tooltipW - OFFSET_X
       }
 
-      // Si le tooltip déborde en haut → le placer en dessous
       if (top < 8) {
         top = param.point.y + 24
       }
 
-      // Si le tooltip déborde en bas → le contraindre
       if (top + tooltipH > height - 8) {
         top = height - tooltipH - 8
       }
@@ -507,15 +513,12 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
       tooltip.style.display = 'block'
     })
 
-    // Cleanup : chart.remove() détruit aussi tous les listeners subscribeCrosshairMove
     return () => {
       chart.remove()
       tooltip.style.display = 'none'
     }
   }, [candles, height, theme, movingAverages, triggeredAlerts, chartPatterns])
 
-  // Styles du tooltip — définis inline car ils sont fixes (non conditionnels)
-  // et doivent être appliqués avant que le JS du chart les modifie.
   const tooltipStyle: React.CSSProperties = {
     position: 'absolute',
     display: 'none',
@@ -528,7 +531,6 @@ export function CandlestickChart({ candles, height = 400, movingAverages = [], t
     boxShadow: theme === 'dark'
       ? '0 4px 20px rgba(0,0,0,0.5)'
       : '0 4px 20px rgba(0,0,0,0.12)',
-    // Transition légère pour éviter le clignotement au premier affichage
     transition: 'opacity 0.05s ease',
   }
 

@@ -7,7 +7,15 @@
  */
 
 import { apiClient } from './api-client'
-import type { Asset, Candle, MovingAverageSeries, ChartPattern } from '@/types/api'
+import type { 
+  Asset, 
+  Candle, 
+  MovingAverageSeries, 
+  ChartPatternResponse, 
+  Page, 
+  ChartPatternDetail,
+  PatternStats
+} from '@/types/api'
 
 /**
  * Récupère la liste de tous les assets disponibles.
@@ -87,11 +95,48 @@ export async function getMovingAverages(
 // --- Figures Chartistes ---
 
 /**
- * Récupère les figures chartistes d'un asset donné.
+ * Récupère les figures chartistes détaillées d'un asset donné.
  * GET /assets/{symbol}/patterns — nécessite un JWT valide.
  *
  * @param symbol - Le ticker de l'asset (ex: "BTC")
  */
-export async function getChartPatterns(symbol: string): Promise<ChartPattern[]> {
-  return apiClient.request<ChartPattern[]>(`/assets/${symbol}/patterns`)
+export async function getChartPatterns(symbol: string): Promise<ChartPatternDetail[]> {
+  return apiClient.request<ChartPatternDetail[]>(`/assets/${symbol}/patterns`)
+}
+
+/**
+ * Récupère toutes les figures chartistes détectées avec pagination et filtres.
+ * GET /patterns?page={page}&size={size}&symbol={symbol}&type={type}&category={category}
+ */
+export async function getPatterns(
+  page: number = 0,
+  size: number = 20,
+  symbol?: string,
+  type?: string,
+  category?: string
+): Promise<Page<ChartPatternResponse>> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    size: size.toString(),
+  })
+  if (symbol) params.append('symbol', symbol)
+  if (type) params.append('type', type)
+  if (category) params.append('category', category)
+
+  return apiClient.request<Page<ChartPatternResponse>>(`/patterns?${params.toString()}`)
+}
+
+/**
+ * Récupère les statistiques globales des types de figures.
+ * GET /patterns/stats?symbol={symbol}&category={category}
+ */
+export async function getPatternStats(
+  symbol?: string,
+  category?: string
+): Promise<PatternStats> {
+  const params = new URLSearchParams()
+  if (symbol) params.append('symbol', symbol)
+  if (category) params.append('category', category)
+
+  return apiClient.request<PatternStats>(`/patterns/stats?${params.toString()}`)
 }

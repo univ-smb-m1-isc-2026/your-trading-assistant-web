@@ -60,12 +60,16 @@ src/
 │   ├── alerts/          # Alert system: create, edit, delete, history
 │   ├── auth/            # Authentication: login, register, JWT
 │   ├── landing/         # Public landing page (pre-login)
-│   └── market/          # Market data: asset list, favorites, candlestick detail
+│   ├── market/          # Market data: asset list, favorites, candlestick detail
+│   └── patterns/        # Chart patterns: list, pagination, filters, detection history
 ├── pages/               # ⚠️ Legacy — contains orphaned dashboard-page.tsx (unused)
 ├── services/            # All HTTP API calls (REST layer)
 ├── stores/              # Zustand store definitions
 ├── types/               # Global TypeScript types and interfaces
 └── utils/               # Pure utility functions (formatting, math...)
+
+design/                  # Pencil (.pen) design files for UI iterations
+
 ```
 
 > **Why feature-based structure?** Co-locating everything related to a feature (components, hooks, pages) inside its own folder makes it easy to find, modify, and eventually delete code. It scales better than organizing by technical role alone (e.g., a flat `components/` folder that grows to 100+ files).
@@ -98,10 +102,11 @@ features/market/
 │   ├── use-assets.ts          # Fetch + sort asset list (available first, null last)
 │   ├── use-candles.ts         # Fetch OHLCV candles for a given symbol
 │   ├── use-favorites.ts       # Read/toggle favorites via REST + useFavoritesStore
-│   └── use-moving-averages.ts # Fetch SMA/EMA series, refetch on type/periods change
+│   ├── use-moving-averages.ts # Fetch SMA/EMA series, refetch on type/periods change
+│   └── use-chart-patterns.ts  # Fetch chart patterns for a given symbol (Hammer, Stars...)
 ├── pages/
 │   ├── assets-page.tsx        # Binance-style table + TodayAlertsBanner + search
-│   ├── asset-detail-page.tsx  # Candlestick chart + MA controls + alert sections
+│   ├── asset-detail-page.tsx  # Candlestick chart + MA controls + patterns + alert sections
 │   └── favorites-page.tsx     # Filtered table of starred assets + search
 └── index.ts
 
@@ -109,7 +114,8 @@ features/alerts/
 ├── hooks/
 │   ├── use-alerts.ts          # Fetch GET /alerts + CRUD (create/update/delete)
 │   ├── use-triggered-alerts.ts # Fetch GET /alerts/triggered (history)
-│   └── use-asset-alerts.ts    # Filtered view by symbol (combines the two hooks)
+│   ├── use-asset-alerts.ts    # Filtered view by symbol (combines the two hooks)
+│   └── use-alert-card.ts      # Logic for alert card: edit state, confirmation timer
 ├── components/
 │   ├── alert-form.tsx         # Inline creation form (type, direction, threshold, recurring)
 │   ├── alert-card.tsx         # Active alert card: display + edit inline + delete (confirm)
@@ -117,6 +123,15 @@ features/alerts/
 │   └── today-alerts-banner.tsx  # Compact banner for dashboard (today's triggers only)
 ├── pages/
 │   └── alerts-page.tsx        # /alerts: history (default) + management (gear toggle)
+└── index.ts
+
+features/patterns/
+├── hooks/
+│   └── use-patterns.ts        # Fetch GET /patterns + /patterns/stats (pagination, filters, global counts)
+├── components/
+│   └── pattern-card.tsx       # Display a detected pattern (vivid if today, pastel otherwise)
+├── pages/
+│   └── patterns-page.tsx      # /patterns: list with search, category and type filters
 └── index.ts
 ```
 
@@ -141,6 +156,7 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
 /assets/:symbol    → AssetDetailPage  (protected — requires JWT)
 /favorites         → FavoritesPage    (protected — requires JWT)
 /alerts            → AlertsPage       (protected — requires JWT)
+/patterns          → PatternsPage     (protected — requires JWT)
 *                  → redirect to /
 ```
 
@@ -154,6 +170,7 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
     <Route path="/assets/:symbol" element={<AssetDetailPage />} />
     <Route path="/favorites" element={<FavoritesPage />} />
     <Route path="/alerts" element={<AlertsPage />} />
+    <Route path="/patterns" element={<PatternsPage />} />
   </Route>
 </Route>
 ```
@@ -383,6 +400,9 @@ services/
 | `POST` | `/assets/{symbol}/favorite` | JWT | `addFavorite(symbol)` |
 | `DELETE` | `/assets/{symbol}/favorite` | JWT | `removeFavorite(symbol)` |
 | `GET` | `/assets/{symbol}/moving-averages` | JWT | `getMovingAverages(symbol, type, periods)` |
+| `GET` | `/assets/{symbol}/patterns` | JWT | `getChartPatterns(symbol)` |
+| `GET` | `/patterns` | JWT | `getPatterns(page, size, symbol, type, category)` |
+| `GET` | `/patterns/stats` | JWT | `getPatternStats(symbol, category)` |
 | `GET` | `/alerts` | JWT | `getAlerts()` |
 | `POST` | `/alerts` | JWT | `createAlert(data)` |
 | `PUT` | `/alerts/{id}` | JWT | `updateAlert(id, data)` |
@@ -406,6 +426,15 @@ Asset[]  →  same shape as GET /assets, filtered to user's favorites
 
 // GET /assets/{symbol}/moving-averages?type=SMA&periods=20,50
 MovingAverageSeries[] → [{ type: "SMA", period: 20, values: [{ date, value }] }]
+
+// GET /assets/{symbol}/patterns
+ChartPatternDetail[] → [{ id, symbol, type, lines: [{ start: { date, value }, end: { date, value } }] }]
+
+// GET /patterns
+Page<ChartPatternResponse> → { content: [{ id, assetSymbol, type, category, date }], totalPages, totalElements, ... }
+
+// GET /patterns/stats
+PatternStats → { "TYPE_A": 10, "TYPE_B": 5, ... }
 
 // GET /alerts
 Alert[] → [{ id, symbol, type, direction, thresholdValue?, shortPeriod?, longPeriod?, maType?, recurring, active, createdAt }]
@@ -478,12 +507,15 @@ useEffect(() => {
     color: c.close >= c.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
   })))
 
-  // 7. Subscribe to crosshair for tooltip (direct DOM, NOT useState — fires at ~60fps)
+  // 7. Add markers for alerts and chart patterns (arrows up/down)
+  createSeriesMarkers(candleSeries, markers)
+
+  // 8. Subscribe to crosshair for tooltip (direct DOM, NOT useState — fires at ~60fps)
   chart.subscribeCrosshairMove((param) => { tooltipRef.current.innerHTML = ... })
 
-  // 8. MANDATORY cleanup — removes the canvas and all DOM listeners
+  // 9. MANDATORY cleanup — removes the canvas and all DOM listeners
   return () => { chart.remove() }
-}, [candles, theme, movingAverages])
+}, [candles, theme, movingAverages, triggeredAlerts, chartPatterns])
 ```
 
 **Key points:**
@@ -491,6 +523,7 @@ useEffect(() => {
 - v5 uses `chart.addSeries(CandlestickSeries, options)` and `chart.addSeries(LineSeries, options)` — the old v4 methods (`addCandlestickSeries`, `addLineSeries`) no longer exist.
 - `lightweight-charts` expects the `time` field typed as a branded string `` `${number}-${number}-${number}` `` — cast `c.date` explicitly to satisfy TypeScript strict mode.
 - **Multi-scale charts:** Use `priceScaleId` to isolate series (like volume) on their own vertical axis. Use `scaleMargins` to prevent visual overlapping.
+- **Markers:** Markers (alerts, patterns) must be sorted by date ascending before being passed to `createSeriesMarkers`.
 - The library is ESM-only; it works with Vite out of the box, but cannot be `require()`'d in Node.js scripts.
 - `ISeriesApi<'Line'>` is the correct TypeScript type for a line series reference.
 
@@ -594,6 +627,48 @@ The timer ref is stored in `useRef<ReturnType<typeof setTimeout>>` and cleared i
 
 ---
 
+## Patterns (Figures Chartistes)
+
+The pattern system detects technical analysis figures (Engulfing, Stars, Dojis, etc.) on assets.
+
+### Types (`src/types/api.ts`)
+
+```ts
+type ChartPatternCategory = 'BULLISH' | 'BEARISH' | 'NEUTRAL'
+
+interface ChartPatternResponse {
+  id: number; assetSymbol: string; date: string;
+  type: string; category: ChartPatternCategory;
+}
+
+interface ChartPatternDetail {
+  id: number; symbol: string; type: string;
+  lines: Array<{ start: { date, value }, end: { date, value } }>;
+}
+```
+
+### Server-side Pagination & Filtering
+
+The global patterns list (`/patterns`) uses server-side pagination and filtering to handle large datasets efficiently.
+
+- **Filtres:** `symbol` (search), `type` (candle type), `category` (Bullish/Bearish/Neutral).
+- **Pagination:** The `usePatterns` hook manages `currentPage`, `totalPages`, and `setPage`. Every filter change resets the page to 0.
+- **Hook logic:** `usePatterns` re-fetches data whenever `currentPage`, `symbol`, `type`, or `category` changes.
+
+### Visual Temporal Logic
+
+Similar to triggered alerts, patterns use temporal styling to prioritize new information:
+- **Today:** Vivid borders (Green for Bullish, Red for Bearish, Slate for Neutral) and full opacity.
+- **Older:** Subtle Slate borders, `opacity-80`, and a standard date format.
+
+### Pattern Rendering on Chart
+
+Patterns are rendered on the `CandlestickChart` as dashed lines (`lineStyle: 2`) using `LineSeries`. 
+- **Omission of Tooltip/Price:** Patterns disable `crosshairMarkerVisible` and `lastValueVisible` to avoid cluttering the main price analysis.
+- **Dynamisme:** The `AssetDetailPage` allows users to toggle specific types of patterns via a dynamic "Indicateurs & Figures" menu.
+
+---
+
 ## Search / Filtering
 
 Both `AssetsPage` and `FavoritesPage` include a search input that filters the displayed assets by symbol in real time.
@@ -646,5 +721,7 @@ The search logic is 3 lines of code (state + trim + filter). Extracting a hook w
 | Chart hex colors (light) | grid `#e2e8f0`, border `#cbd5e1`, tooltip border `#cbd5e1`, divider `#e2e8f0` | Upgraded from slate-100/200 to slate-200/300 equivalents for visible separation on white backgrounds. |
 | **Alert omission** | Omit `thresholdValue` for `MA_CROSSOVER` | Avoids database NOT NULL constraint violations when the field is irrelevant. |
 | **Triggered join** | Use nested `alert` object in `TriggeredAlert` | Prevents complex client-side joins and provides accurate params at trigger time. |
+| **Patterns List Pagination** | Server-side filtering + pagination | Essential for performance as the historical dataset grows. |
+| **Category Icons** | BULLISH (📈) / BEARISH (📉) / NEUTRAL (➖) | Provides instant semantic recognition in lists and tooltips. |
 | **Volume Opacity** | Use 40-50% opacity for `HistogramSeries` | Ensures volume bars remain in the background and don't visually clutter the price candles. |
 | **Chart Margins** | 25% bottom margin on price scale | Leaves dedicated room for the volume histogram without overlap. |

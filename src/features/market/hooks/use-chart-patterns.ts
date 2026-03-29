@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { getChartPatterns } from '@/services/market-service'
-import type { ChartPattern } from '@/types/api'
+import type { ChartPatternDetail } from '@/types/api'
 
 export interface UseChartPatternsReturn {
-  patterns: ChartPattern[]
+  patterns: ChartPatternDetail[]
   loading: boolean
   error: string | null
 }
 
 export function useChartPatterns(symbol: string): UseChartPatternsReturn {
-  const [patterns, setPatterns] = useState<ChartPattern[]>([])
+  const [patterns, setPatterns] = useState<ChartPatternDetail[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

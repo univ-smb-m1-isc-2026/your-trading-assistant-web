@@ -7,6 +7,27 @@ export interface HelloResponse {
   message: string
 }
 
+/**
+ * Structure générique pour la pagination Spring Boot / Backend
+ */
+export interface Page<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+  first: boolean
+  last: boolean
+  numberOfElements: number
+  empty: boolean
+}
+
+/** 
+ * Alias pour la compatibilité avec l'ancien nom si nécessaire, 
+ * mais on privilégie Page<T> désormais.
+ */
+export type PaginatedResponse<T> = Page<T>;
+
 // --- Auth ---
 
 /**
@@ -202,10 +223,43 @@ export interface UpdateAlertRequest {
 
 // --- Figures Chartistes ---
 
-export interface ChartPattern {
+export type ChartPatternCategory = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+
+export type ChartPatternType = 
+  | 'BULLISH_ENGULFING' | 'MORNING_STAR' | 'HAMMER' | 'DRAGONFLY_DOJI'
+  | 'BEARISH_ENGULFING' | 'EVENING_STAR' | 'SHOOTING_STAR' | 'GRAVESTONE_DOJI'
+  | 'SMALL_RANGED_CANDLE' | 'DOJI' | 'SMALL_BODIED_CANDLE';
+
+export interface ChartPatternResponse {
+  id: number;
+  assetSymbol: string;
+  date: string; // Format ISO: "YYYY-MM-DD"
+  type: ChartPatternType;
+  category: ChartPatternCategory;
+}
+
+/** Ancien nom pour compatibilité */
+export type ChartPattern = ChartPatternResponse;
+
+export interface PatternPoint {
+  date: string
+  value: number
+}
+
+export interface PatternLine {
+  start: PatternPoint
+  end: PatternPoint
+}
+
+/** Structure pour le détail d'une figure (utilisée dans le chart) */
+export interface ChartPatternDetail {
   id: number
   assetSymbol: string
-  type: string
-  category: 'BULLISH' | 'BEARISH' | string
   date: string
+  type: string
+  category: ChartPatternCategory
+  lines?: PatternLine[]
 }
+
+/** Statistiques des types de figures */
+export type PatternStats = Record<string, number>;
