@@ -9,13 +9,6 @@ export interface AiPredictionResponse {
   direction: 'UP' | 'DOWN'
 }
 
-export interface AiLatestSampleResponse {
-  ticker: string
-  date: string
-  features: Record<string, number>
-  actual_variation_pct: number
-}
-
 export interface AiTestReportSummary {
   test_rows: number
   mae_pct: number
@@ -65,8 +58,4 @@ export async function getAiPrediction(
 
 export async function getAiTestReport(): Promise<AiTestReportResponse> {
   return apiClient.request<AiTestReportResponse>('/ai/test-report')
-}
-
-export async function getAiLatestSample(): Promise<AiLatestSampleResponse> {
-  return apiClient.request<AiLatestSampleResponse>('/ai/latest-sample')
 }

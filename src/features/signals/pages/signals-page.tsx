@@ -1,20 +1,174 @@
 import { useEffect, useState } from 'react'
-import {
-  getAiHealth,
-  getAiLatestSample,
-  getAiPrediction,
-  getAiTestReport,
-} from '@/services/ai-service'
+import { getAiHealth, getAiPrediction, getAiTestReport } from '@/services/ai-service'
 import type {
   AiHealthResponse,
-  AiLatestSampleResponse,
   AiPredictionResponse,
   AiTestReportExample,
   AiTestReportResponse,
 } from '@/services/ai-service'
+import { getAssets, getCandles } from '@/services/market-service'
+import type { Candle } from '@/types/api'
 
 function signedPct(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+}
+
+function mean(values: number[]): number {
+  return values.reduce((sum, v) => sum + v, 0) / values.length
+}
+
+function sampleStd(values: number[]): number {
+  if (values.length <= 1) return 0
+  const m = mean(values)
+  const variance = values.reduce((sum, v) => sum + (v - m) ** 2, 0) / (values.length - 1)
+  return Math.sqrt(variance)
+}
+
+function ema(values: number[], span: number): number[] {
+  const alpha = 2 / (span + 1)
+  const out = [values[0]]
+  for (let i = 1; i < values.length; i += 1) {
+    out.push(alpha * values[i] + (1 - alpha) * out[i - 1])
+  }
+  return out
+}
+
+function computeFeaturesFromCandles(candles: Candle[]): Record<string, number> | null {
+  if (candles.length < 60) return null
+
+  const sorted = [...candles].sort((a, b) => a.date.localeCompare(b.date))
+  const close = sorted.map((c) => c.close)
+  const open = sorted.map((c) => c.open)
+  const high = sorted.map((c) => c.high)
+  const low = sorted.map((c) => c.low)
+  const volume = sorted.map((c) => c.volume)
+  const n = sorted.length
+  const last = n - 1
+
+  const pctChange = (period: number): number | null => {
+    const prev = close[last - period]
+    if (!Number.isFinite(prev) || prev === 0) return null
+    return close[last] / prev - 1
+  }
+
+  const rollingMeanClose = (period: number) => mean(close.slice(n - period))
+  const rollingMeanVolume = (period: number) => mean(volume.slice(n - period))
+
+  const dailyReturns: number[] = []
+  for (let i = 1; i < n; i += 1) {
+    dailyReturns.push(close[i] / close[i - 1] - 1)
+  }
+
+  const rollVol = (period: number) => sampleStd(dailyReturns.slice(dailyReturns.length - period))
+
+  const deltas = []
+  for (let i = n - 14; i < n; i += 1) {
+    deltas.push(close[i] - close[i - 1])
+  }
+  const gains = deltas.map((d) => (d > 0 ? d : 0))
+  const losses = deltas.map((d) => (d < 0 ? -d : 0))
+  const avgGain = mean(gains)
+  const avgLoss = mean(losses)
+  const rs = avgGain / (avgLoss === 0 ? 1e-10 : avgLoss)
+  const rsi14 = 100 - 100 / (1 + rs)
+
+  const ema12 = ema(close, 12)
+  const ema26 = ema(close, 26)
+  const macdLine = close.map((_, i) => ema12[i] - ema26[i])
+  const macdSignal = ema(macdLine, 9)
+  const macdSignalDiff = (macdLine[last] - macdSignal[last]) / close[last]
+
+  const bbMid = rollingMeanClose(20)
+  const bbStd = sampleStd(close.slice(n - 20))
+  const bbUpper = bbMid + 2 * bbStd
+  const bbLower = bbMid - 2 * bbStd
+  const bbWidth = bbUpper - bbLower
+  const bollingerPos = (close[last] - bbLower) / (bbWidth === 0 ? 1e-10 : bbWidth)
+
+  const trValues: number[] = []
+  for (let i = n - 14; i < n; i += 1) {
+    const prevClose = close[i - 1]
+    const tr = Math.max(
+      high[i] - low[i],
+      Math.abs(high[i] - prevClose),
+      Math.abs(low[i] - prevClose),
+    )
+    trValues.push(tr)
+  }
+  const atr14Pct = mean(trValues) / close[last]
+
+  const day = new Date(`${sorted[last].date}T00:00:00Z`).getUTCDay()
+  const dayOfWeek = (day + 6) % 7
+
+  const return1d = pctChange(1)
+  const return2d = pctChange(2)
+  const return3d = pctChange(3)
+  const return5d = pctChange(5)
+  const return10d = pctChange(10)
+  const return20d = pctChange(20)
+  if (
+    return1d == null || return2d == null || return3d == null ||
+    return5d == null || return10d == null || return20d == null
+  ) {
+    return null
+  }
+
+  const previousClose = close[last - 1]
+  if (!Number.isFinite(previousClose) || previousClose === 0) return null
+
+  const computed = {
+    return_1d: return1d,
+    return_2d: return2d,
+    return_3d: return3d,
+    return_5d: return5d,
+    return_10d: return10d,
+    return_20d: return20d,
+    close_vs_ma5: close[last] / rollingMeanClose(5) - 1,
+    close_vs_ma10: close[last] / rollingMeanClose(10) - 1,
+    close_vs_ma20: close[last] / rollingMeanClose(20) - 1,
+    close_vs_ma50: close[last] / rollingMeanClose(50) - 1,
+    volatility_5: rollVol(5),
+    volatility_10: rollVol(10),
+    volatility_20: rollVol(20),
+    volume_ratio_5: volume[last] / rollingMeanVolume(5),
+    volume_ratio_20: volume[last] / rollingMeanVolume(20),
+    high_low_range: (high[last] - low[last]) / close[last],
+    open_gap: (open[last] - previousClose) / previousClose,
+    rsi_14: rsi14,
+    macd_signal_diff: macdSignalDiff,
+    bollinger_pos: bollingerPos,
+    atr_14_pct: atr14Pct,
+    day_of_week: Number(dayOfWeek),
+  }
+
+  const allFinite = Object.values(computed).every((v) => Number.isFinite(v))
+  return allFinite ? computed : null
+}
+
+async function pickRandomPredictInput(): Promise<{
+  symbol: string
+  date: string
+  features: Record<string, number>
+}> {
+  const assets = await getAssets()
+  const symbols = [...assets.map((a) => a.symbol)].sort(() => Math.random() - 0.5)
+
+  for (const symbol of symbols) {
+    try {
+      const candles = await getCandles(symbol)
+      const features = computeFeaturesFromCandles(candles)
+      if (!features) continue
+      return {
+        symbol,
+        date: candles[candles.length - 1].date,
+        features,
+      }
+    } catch {
+      // on tente le symbole suivant
+    }
+  }
+
+  throw new Error('Impossible de construire un vecteur de features depuis les données marché.')
 }
 
 function ExamplesTable({
@@ -67,7 +221,8 @@ function ExamplesTable({
 export function SignalsPage() {
   const [health, setHealth] = useState<AiHealthResponse | null>(null)
   const [report, setReport] = useState<AiTestReportResponse | null>(null)
-  const [latestSample, setLatestSample] = useState<AiLatestSampleResponse | null>(null)
+  const [predictSymbol, setPredictSymbol] = useState<string | null>(null)
+  const [predictDate, setPredictDate] = useState<string | null>(null)
   const [latestPrediction, setLatestPrediction] = useState<AiPredictionResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,17 +230,19 @@ export function SignalsPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [healthRes, reportRes, sampleRes] = await Promise.all([
+        const [healthRes, reportRes] = await Promise.all([
           getAiHealth(),
           getAiTestReport(),
-          getAiLatestSample(),
         ])
 
         setHealth(healthRes)
         setReport(reportRes)
-        setLatestSample(sampleRes)
 
-        const predictionRes = await getAiPrediction(sampleRes.features)
+        const predictInput = await pickRandomPredictInput()
+        setPredictSymbol(predictInput.symbol)
+        setPredictDate(predictInput.date)
+
+        const predictionRes = await getAiPrediction(predictInput.features)
         setLatestPrediction(predictionRes)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
@@ -112,11 +269,11 @@ export function SignalsPage() {
           Prédiction J+1 (dernier actif disponible)
         </h2>
 
-        {!loading && latestSample && latestPrediction && (
+        {!loading && predictSymbol && predictDate && latestPrediction && (
           <div className="mt-3 space-y-3">
             <div className="text-sm text-slate-600 dark:text-slate-400">
-              Actif tiré au hasard sur la dernière date dispo :{' '}
-              <span className="font-semibold">{latestSample.ticker}</span> ({latestSample.date})
+              Actif tiré au hasard depuis les données marché :{' '}
+              <span className="font-semibold">{predictSymbol}</span> ({predictDate})
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900/30">
@@ -134,7 +291,7 @@ export function SignalsPage() {
                 Direction : <span className="font-semibold">{latestPrediction.direction}</span>
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Référence test (réel observé sur cette ligne) : {signedPct(latestSample.actual_variation_pct)}
+                Entrée utilisée : vecteur de features calculé depuis les bougies de l'API.
               </p>
             </div>
           </div>
