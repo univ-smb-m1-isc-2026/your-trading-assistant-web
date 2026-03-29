@@ -199,44 +199,36 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
   // ─── Mode affichage ──────────────────────────────────────────────
   return (
     <div className={cn(
-      'flex items-center justify-between rounded-lg border p-4 transition-colors',
+      'flex items-start gap-3 rounded-lg border p-4 transition-colors shadow-sm',
       alert.active
         ? 'border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-800/50'
         : 'border-slate-200 bg-slate-50 opacity-60 dark:border-slate-800 dark:bg-slate-900/50',
     )}>
-      <div className="flex items-center gap-3">
-        {/* Icône direction */}
-        <div className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold',
-          alert.direction === 'ABOVE'
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-        )}>
-          {alert.direction === 'ABOVE' ? '↑' : '↓'}
-        </div>
+      {/* Icône direction */}
+      <div className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+        alert.direction === 'ABOVE'
+          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      )}>
+        {alert.direction === 'ABOVE' ? '↑' : '↓'}
+      </div>
 
-        <div>
-          <div className="flex items-center gap-2">
-            <Link
-              to={`/assets/${alert.symbol}`}
-              className="text-sm font-bold text-slate-900 transition-colors hover:text-primary dark:text-white dark:hover:text-blue-400"
-            >
-              {alert.symbol}
-            </Link>
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {!isMACross ? (
-                `${formatAlertType(alert.type)} ${formatDirection(alert.direction, alert.type).toLowerCase()}`
-              ) : (
-                `${alert.maType}(${alert.shortPeriod}) croise ${alert.direction === 'ABOVE' ? 'au-dessus de' : 'en-dessous de'} ${alert.maType}(${alert.longPeriod})`
-              )}
-            </span>
-            {/* Badge récurrente */}
+      <div className="flex flex-1 flex-col gap-1.5 min-w-0">
+        {/* Ligne 1 : Symbole + Badges */}
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            to={`/assets/${alert.symbol}`}
+            className="text-sm font-bold text-primary transition-colors hover:text-primary-hover dark:text-blue-400 dark:hover:text-blue-300 truncate"
+          >
+            {alert.symbol}
+          </Link>
+          <div className="flex gap-1 shrink-0">
             {alert.recurring && (
               <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                Récurrente
+                Récur.
               </span>
             )}
-            {/* Badge actif/inactif */}
             <span className={cn(
               'rounded px-1.5 py-0.5 text-[10px] font-semibold',
               alert.active
@@ -246,68 +238,79 @@ export function AlertCard({ alert, onUpdate, onDelete }: AlertCardProps) {
               {alert.active ? 'Active' : 'Inactive'}
             </span>
           </div>
-          {!isMACross && (
-            <p className="mt-0.5 font-mono text-xs text-slate-600 dark:text-slate-400">
-              Seuil : {alert.thresholdValue?.toLocaleString('fr-FR')}
-            </p>
-          )}
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
-        {/* Toggle actif/inactif */}
-        <button
-          onClick={() => void toggleActive()}
-          disabled={submitting}
-          title={alert.active ? 'Désactiver' : 'Réactiver'}
-          className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-        >
-          {alert.active ? (
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+        {/* Ligne 2 : Description technique (EN DESSOUS du symbole) */}
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-snug break-words">
+          {!isMACross ? (
+            `${formatAlertType(alert.type)} ${formatDirection(alert.direction, alert.type).toLowerCase()}`
           ) : (
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            `${alert.maType}(${alert.shortPeriod}) croise ${alert.direction === 'ABOVE' ? 'au-dessus de' : 'en-dessous de'} ${alert.maType}(${alert.longPeriod})`
           )}
-        </button>
+        </p>
 
-        {/* Modifier */}
-        <button
-          onClick={startEdit}
-          disabled={submitting}
-          title="Modifier"
-          className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
+        {/* Ligne 3 : Pied de page (Seuil + Actions) */}
+        <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100 dark:border-slate-700/50">
+          <div className="min-h-[1rem]">
+            {!isMACross && (
+              <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                Seuil : <span className="font-semibold text-slate-700 dark:text-slate-300">{alert.thresholdValue?.toLocaleString('fr-FR')}</span>
+              </p>
+            )}
+          </div>
 
-        {/* Supprimer — avec confirmation inline */}
-        <button
-          onClick={deleteClick}
-          disabled={submitting}
-          title={confirming ? 'Cliquer pour confirmer' : 'Supprimer'}
-          className={cn(
-            'rounded px-2 py-1.5 text-xs font-medium transition-colors',
-            confirming
-              ? 'bg-red-600 text-white hover:bg-red-700'
-              : 'text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950 dark:hover:text-red-400',
-          )}
-        >
-          {confirming ? 'Confirmer ?' : (
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3,6 5,6 21,6" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          )}
-        </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => void toggleActive()}
+              disabled={submitting}
+              title={alert.active ? 'Désactiver' : 'Réactiver'}
+              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            >
+              {alert.active ? (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="1" y1="1" x2="23" y2="23" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+
+            <button
+              onClick={startEdit}
+              disabled={submitting}
+              title="Modifier"
+              className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            <button
+              onClick={deleteClick}
+              disabled={submitting}
+              title={confirming ? 'Cliquer pour confirmer' : 'Supprimer'}
+              className={cn(
+                'rounded px-2 py-1.5 text-xs font-medium transition-colors',
+                confirming
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-950 dark:hover:text-red-400',
+              )}
+            >
+              {confirming ? 'Confirmer ?' : (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3,6 5,6 21,6" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
