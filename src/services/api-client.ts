@@ -28,7 +28,8 @@ const TOKEN_KEY = 'auth_token'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   // Récupère le token JWT depuis localStorage (null si non connecté)
-  const token = localStorage.getItem(TOKEN_KEY)
+  const rawToken = localStorage.getItem(TOKEN_KEY)
+  const token = (rawToken === 'null' || rawToken === 'undefined') ? null : rawToken
 
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: {

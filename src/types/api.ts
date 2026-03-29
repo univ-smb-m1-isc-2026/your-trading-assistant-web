@@ -221,6 +221,28 @@ export interface UpdateAlertRequest {
   active?: boolean
 }
 
+// --- Profil & Paramètres ---
+
+export interface UserProfile {
+  username: string
+  email: string
+  discordWebhook: string | null
+  role: 'ROLE_USER' | 'ROLE_ADMIN'
+}
+
+export interface UpdateProfileRequest {
+  username?: string
+  email?: string
+  oldPassword?: string
+  newPassword?: string
+  discordWebhook?: string | null
+}
+
+export interface UpdateProfileResponse {
+  profile: UserProfile
+  token?: string
+}
+
 // --- Figures Chartistes ---
 
 export type ChartPatternCategory = 'BULLISH' | 'BEARISH' | 'NEUTRAL';

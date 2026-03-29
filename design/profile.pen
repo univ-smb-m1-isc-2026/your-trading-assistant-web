@@ -1,0 +1,342 @@
+{
+  "version": "2.9",
+  "children": [
+    {
+      "type": "frame",
+      "id": "SK4Ed",
+      "x": 0,
+      "y": 0,
+      "name": "Webhook Banner Section",
+      "width": 1000,
+      "height": 100,
+      "fill": "$slate_50",
+      "layout": "vertical",
+      "gap": 10,
+      "padding": 20,
+      "children": [
+        {
+          "type": "frame",
+          "id": "d8Woj",
+          "name": "Banner/Info",
+          "width": "fill_container",
+          "fill": "$primary_light",
+          "cornerRadius": "$radius_md",
+          "stroke": {
+            "thickness": 1,
+            "fill": "#2563eb33"
+          },
+          "padding": [
+            12,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "YAZ6M",
+              "name": "bannerLeft",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "wbg5j",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "bell",
+                  "iconFontFamily": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "z4aUP",
+                  "fill": "$primary",
+                  "content": "📢 Configurez votre webhook Discord pour recevoir des notifications sur Discord!.",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "medium"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "44BhY",
+              "name": "Btn/Link",
+              "fill": "$primary",
+              "cornerRadius": 6,
+              "padding": [
+                6,
+                12
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "kBFfj",
+                  "fill": "#ffffff",
+                  "content": "Configurer",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "JQ5tg",
+      "x": 0,
+      "y": 150,
+      "name": "Profile Page Section",
+      "width": 1000,
+      "height": 600,
+      "fill": "$slate_50",
+      "layout": "vertical",
+      "gap": 32,
+      "padding": 40,
+      "children": [
+        {
+          "type": "frame",
+          "id": "BeoOo",
+          "name": "header",
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "type": "text",
+              "id": "sSX8L",
+              "fill": "$slate_900",
+              "content": "Mon Profil",
+              "fontFamily": "Inter",
+              "fontSize": 32,
+              "fontWeight": "bold"
+            },
+            {
+              "type": "text",
+              "id": "SxqRz",
+              "fill": "$slate_600",
+              "content": "Gérez vos paramètres personnels et vos notifications.",
+              "fontFamily": "Inter",
+              "fontSize": 16,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "CQt09",
+          "name": "Card/Settings",
+          "width": 600,
+          "fill": "#ffffff",
+          "cornerRadius": "$radius_lg",
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#00000010",
+            "offset": {
+              "x": 0,
+              "y": 10
+            },
+            "blur": 20
+          },
+          "layout": "vertical",
+          "gap": 24,
+          "padding": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "Q9q8J",
+              "name": "cardTitle",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "AimVp",
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "message-square",
+                  "iconFontFamily": "lucide",
+                  "fill": "$primary"
+                },
+                {
+                  "type": "text",
+                  "id": "B0mtB",
+                  "fill": "$slate_900",
+                  "content": "Notifications Discord",
+                  "fontFamily": "Inter",
+                  "fontSize": 20,
+                  "fontWeight": "bold"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "mf96p",
+              "name": "field",
+              "width": 397,
+              "gap": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "JBgwj",
+                  "fill": "$slate_700",
+                  "content": "Webhook URL",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "semibold"
+                },
+                {
+                  "type": "frame",
+                  "id": "W9gmT",
+                  "name": "input",
+                  "width": "fill_container",
+                  "height": 44,
+                  "fill": "$slate_50",
+                  "cornerRadius": "$radius_md",
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$slate_300"
+                  },
+                  "padding": [
+                    0,
+                    16
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "qKTTL",
+                      "fill": "$slate_400",
+                      "content": "https://discord.com/api/webhooks/...",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "mVULG",
+              "fill": "$slate_500",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "Les alertes déclenchées seront envoyées directement sur votre serveur Discord via cette URL.",
+              "fontFamily": "Inter",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "VIlkT",
+              "name": "Btn/Save",
+              "fill": "$primary",
+              "cornerRadius": "$radius_md",
+              "padding": [
+                12,
+                24
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "yh4IF",
+                  "fill": "#ffffff",
+                  "content": "Enregistrer les modifications",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "bold"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "primary": {
+      "type": "color",
+      "value": "#2563eb"
+    },
+    "primary_hover": {
+      "type": "color",
+      "value": "#3b82f6"
+    },
+    "primary_light": {
+      "type": "color",
+      "value": "#dbeafe"
+    },
+    "radius_lg": {
+      "type": "number",
+      "value": 12
+    },
+    "radius_md": {
+      "type": "number",
+      "value": 8
+    },
+    "slate_100": {
+      "type": "color",
+      "value": "#f1f5f9"
+    },
+    "slate_200": {
+      "type": "color",
+      "value": "#e2e8f0"
+    },
+    "slate_300": {
+      "type": "color",
+      "value": "#cbd5e1"
+    },
+    "slate_400": {
+      "type": "color",
+      "value": "#94a3b8"
+    },
+    "slate_50": {
+      "type": "color",
+      "value": "#f8fafc"
+    },
+    "slate_500": {
+      "type": "color",
+      "value": "#64748b"
+    },
+    "slate_600": {
+      "type": "color",
+      "value": "#475569"
+    },
+    "slate_700": {
+      "type": "color",
+      "value": "#334155"
+    },
+    "slate_800": {
+      "type": "color",
+      "value": "#1e293b"
+    },
+    "slate_900": {
+      "type": "color",
+      "value": "#0f172a"
+    },
+    "spacing_lg": {
+      "type": "number",
+      "value": 24
+    },
+    "spacing_md": {
+      "type": "number",
+      "value": 16
+    },
+    "spacing_sm": {
+      "type": "number",
+      "value": 8
+    },
+    "spacing_xs": {
+      "type": "number",
+      "value": 4
+    }
+  }
+}

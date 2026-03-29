@@ -35,6 +35,7 @@ import { LandingPage } from '@/features/landing'
 import { AssetsPage, AssetDetailPage, FavoritesPage } from '@/features/market'
 import { AlertsPage } from '@/features/alerts'
 import { PatternsPage } from '@/features/patterns'
+import { ProfilePage } from '@/features/profile'
 import { ProtectedRoute } from '@/components/protected-route'
 import { AppLayout } from '@/components/layout/app-layout'
 
@@ -56,6 +57,7 @@ export function App() {
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/patterns" element={<PatternsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
 

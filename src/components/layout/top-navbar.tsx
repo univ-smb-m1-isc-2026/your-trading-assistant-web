@@ -20,6 +20,7 @@ import { useThemeStore } from '@/stores/use-theme-store'
 import { useAuthStore } from '@/stores/use-auth-store'
 import { useFavoritesStore } from '@/stores/use-favorites-store'
 import { useAlertsStore } from '@/stores/use-alerts-store'
+import { useProfileStore } from '@/stores/use-profile-store'
 
 export function TopNavbar() {
   const theme = useThemeStore((s) => s.theme)
@@ -27,15 +28,14 @@ export function TopNavbar() {
   const logout = useAuthStore((s) => s.logout)
   const resetFavorites = useFavoritesStore((s) => s.reset)
   const resetAlerts = useAlertsStore((s) => s.reset)
+  const resetProfile = useProfileStore((s) => s.reset)
   const navigate = useNavigate()
 
   function handleLogout() {
     // Réinitialise les stores de données utilisateur avant de déconnecter.
-    // Sans ce reset, les données du premier utilisateur resteraient en mémoire
-    // et seraient visibles par le prochain utilisateur qui se connecte sur
-    // la même session de navigateur sans rechargement de page.
     resetFavorites()
     resetAlerts()
+    resetProfile()
     logout()
     navigate('/login')
   }

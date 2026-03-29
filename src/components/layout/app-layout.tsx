@@ -22,20 +22,32 @@
  *   ProtectedRoute = garde d'accès. L'un pourrait exister sans l'autre.
  */
 
+import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import { TopNavbar } from '@/components/layout/top-navbar'
 import { Sidebar } from '@/components/layout/sidebar'
 import { SessionExpiredModal } from '@/components/ui/session-expired-modal'
+import { WebhookBanner, useProfile } from '@/features/profile'
 
 export function AppLayout() {
+  const { loadProfile } = useProfile()
+
+  // Chargement du profil au montage du layout (donc à la connexion)
+  useEffect(() => {
+    void loadProfile()
+  }, [loadProfile])
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <TopNavbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
-          <Outlet />
-        </main>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <WebhookBanner />
+          <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+            <Outlet />
+          </main>
+        </div>
       </div>
       {/* Monté ici pour couvrir toutes les pages protégées.
           Se rend null si sessionExpired === false — coût de rendu nul. */}

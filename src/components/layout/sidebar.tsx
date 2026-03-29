@@ -104,6 +104,15 @@ function IconShapes() {
   )
 }
 
+function IconUser() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="7" r="4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-slate-300 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -115,6 +124,7 @@ export function Sidebar() {
         <SidebarItem to="/favorites" label="Favoris" icon={<IconStar />} />
         <SidebarItem to="/alerts" label="Alertes" icon={<IconBell />} />
         <SidebarItem to="/patterns" label="Figures" icon={<IconShapes />} />
+        <SidebarItem to="/profile" label="Mon Profil" icon={<IconUser />} />
         <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} disabled />
       </nav>
 
