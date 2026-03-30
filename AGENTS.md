@@ -110,6 +110,31 @@ features/market/
 │   └── favorites-page.tsx     # Filtered table of starred assets + search
 └── index.ts
 
+features/predictions/
+├── hooks/
+│   ├── use-asset-predictions.ts   # Fetch daily AI predictions for a specific asset
+│   ├── use-backtest-global.ts     # Global success rate & performance metrics
+│   ├── use-backtest-assets.ts     # Success rates grouped and sorted by asset
+│   └── use-backtest-single-asset.ts # Historical success metrics for a specific asset
+├── components/
+│   ├── asset-prediction-widget.tsx # Under-chart UI showing latest prediction, history & 30D backtest
+│   ├── prediction-badge.tsx        # Small UI element showing expected variation with up/down arrows
+│   ├── prediction-stats-banner.tsx # Global health check banner for predictions performance
+│   └── top-predictions-table.tsx   # Table ranking assets by predicted variation (+/-)
+├── pages/
+│   ├── signals-page.tsx        # Global view of top predictions & market health
+│   └── backtest-page.tsx       # Historical performance review (Global KPI & per-asset table)
+└── index.ts
+
+features/profile/
+├── hooks/
+│   └── use-profile.ts         # Logic for updating user settings via backend
+├── components/
+│   └── webhook-banner.tsx     # Specialized banner for discord/slack integration settings
+├── pages/
+│   └── profile-page.tsx       # User settings page (Webhook URLs, account config)
+└── index.ts
+
 features/alerts/
 ├── hooks/
 │   ├── use-alerts.ts          # Fetch GET /alerts + CRUD (create/update/delete)
@@ -157,6 +182,9 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
 /favorites         → FavoritesPage    (protected — requires JWT)
 /alerts            → AlertsPage       (protected — requires JWT)
 /patterns          → PatternsPage     (protected — requires JWT)
+/predictions       → SignalsPage      (protected — requires JWT)
+/predictions/backtest → BacktestPage  (protected — requires JWT)
+/profile           → ProfilePage      (protected — requires JWT)
 *                  → redirect to /
 ```
 
@@ -171,6 +199,9 @@ Routes are defined in `src/App.tsx` using React Router `<Routes>` and `<Route>`.
     <Route path="/favorites" element={<FavoritesPage />} />
     <Route path="/alerts" element={<AlertsPage />} />
     <Route path="/patterns" element={<PatternsPage />} />
+    <Route path="/predictions" element={<SignalsPage />} />
+    <Route path="/predictions/backtest" element={<BacktestPage />} />
+    <Route path="/profile" element={<ProfilePage />} />
   </Route>
 </Route>
 ```
