@@ -305,5 +305,23 @@ export interface PredictionResponse {
   symbol: string
   date: string
   predictedVariationPct: number
-  expectedDirection: 'UP' | 'DOWN'
+  actualVariation?: number | null
+  isSuccess?: boolean | null
+  absoluteError?: number | null
+}
+
+
+export interface BacktestGlobalStats {
+  totalPredictions: number
+  successRatePct: number
+  maxPotentialSuccessRatePct: number
+  meanAbsoluteErrorPct: number
+}
+
+export interface BacktestAssetStats {
+  symbol: string
+  totalPredictions: number
+  successRatePct: number
+  maxPotentialSuccessRatePct: number
+  meanAbsoluteErrorPct: number
 }

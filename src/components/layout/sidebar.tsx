@@ -113,6 +113,17 @@ function IconUser() {
   )
 }
 
+
+function IconTarget() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function Sidebar() {
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-slate-300 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -126,6 +137,7 @@ export function Sidebar() {
         <SidebarItem to="/patterns" label="Figures" icon={<IconShapes />} />
         <SidebarItem to="/profile" label="Mon Profil" icon={<IconUser />} />
         <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} />
+        <SidebarItem to="/backtest" label="Performances IA" icon={<IconTarget />} />
       </nav>
 
       {/* Footer sidebar — version */}

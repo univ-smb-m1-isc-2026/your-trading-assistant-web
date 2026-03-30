@@ -36,7 +36,7 @@ import { AssetsPage, AssetDetailPage, FavoritesPage } from '@/features/market'
 import { AlertsPage } from '@/features/alerts'
 import { PatternsPage } from '@/features/patterns'
 import { ProfilePage } from '@/features/profile'
-import { SignalsPage } from '@/features/predictions'
+import { SignalsPage, BacktestPage } from '@/features/predictions'
 import { ProtectedRoute } from '@/components/protected-route'
 import { AppLayout } from '@/components/layout/app-layout'
 
@@ -59,6 +59,7 @@ export function App() {
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/patterns" element={<PatternsPage />} />
           <Route path="/signals" element={<SignalsPage />} />
+          <Route path="/backtest" element={<BacktestPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>

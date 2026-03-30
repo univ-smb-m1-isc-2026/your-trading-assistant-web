@@ -67,7 +67,7 @@ export function TopPredictionsTable({ predictions, isLoading, error }: TopPredic
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {predictions.map((pred) => {
-              const isUp = pred.expectedDirection === 'UP'
+              const isUp = pred.predictedVariationPct >= 0
               const colorClass = isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
               const bgClass = isUp ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'
               
@@ -92,7 +92,7 @@ export function TopPredictionsTable({ predictions, isLoading, error }: TopPredic
                   <td className="px-6 py-4">
                     <div className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold', bgClass, colorClass)}>
                       {isUp ? <TrendingUpIcon className="h-3.5 w-3.5" /> : <TrendingDownIcon className="h-3.5 w-3.5" />}
-                      {pred.expectedDirection}
+                      {pred.predictedVariationPct >= 0 ? 'UP' : 'DOWN'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
