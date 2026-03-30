@@ -285,3 +285,25 @@ export interface ChartPatternDetail {
 
 /** Statistiques des types de figures */
 export type PatternStats = Record<string, number>;
+
+// --- Signaux IA ---
+
+export interface PredictionHealth {
+  status: 'ok' | 'unavailable'
+}
+
+export interface PredictionStats {
+  min: number
+  max: number
+  mean: number
+  median: number
+  count: number
+}
+
+export interface PredictionResponse {
+  id: number
+  symbol: string
+  date: string
+  predictedVariationPct: number
+  expectedDirection: 'UP' | 'DOWN'
+}

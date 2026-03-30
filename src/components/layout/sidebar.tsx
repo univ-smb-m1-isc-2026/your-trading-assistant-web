@@ -125,7 +125,7 @@ export function Sidebar() {
         <SidebarItem to="/alerts" label="Alertes" icon={<IconBell />} />
         <SidebarItem to="/patterns" label="Figures" icon={<IconShapes />} />
         <SidebarItem to="/profile" label="Mon Profil" icon={<IconUser />} />
-        <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} disabled />
+        <SidebarItem to="/signals" label="Signaux IA" icon={<IconBrain />} />
       </nav>
 
       {/* Footer sidebar — version */}

@@ -30,6 +30,7 @@ import { useMovingAverages } from '../hooks/use-moving-averages'
 import { useChartPatterns } from '../hooks/use-chart-patterns'
 import { CandlestickChart } from '@/components/ui/candlestick-chart'
 import { PatternLibrary } from '../components/pattern-library'
+import { AssetPredictionWidget } from '@/features/predictions'
 import { AlertForm, AlertCard, TriggeredAlertCard, useAssetAlerts } from '@/features/alerts'
 import { cn } from '@/utils/cn'
 
@@ -371,6 +372,7 @@ export function AssetDetailPage() {
           <CandlestickChart candles={candles} height={480} movingAverages={maSeries} triggeredAlerts={assetTriggered} chartPatterns={activePatterns} />
           
           {/* Lexique des figures chartistes */}
+                    <AssetPredictionWidget symbol={symbol || ''} className="mb-6" />
           <PatternLibrary detectedPatterns={patterns} activePatternTypes={activePatternTypes} />
         </div>
       )}
