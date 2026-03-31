@@ -325,3 +325,21 @@ export interface BacktestAssetStats {
   maxPotentialSuccessRatePct: number
   meanAbsoluteErrorPct: number
 }
+
+// --- Sentiment Communautaire ---
+
+export type SentimentType = 'BULLISH' | 'BEARISH'
+
+export interface SentimentPollResponse {
+  symbol: string
+  bullishCount: number
+  bearishCount: number
+  totalVotes: number
+  bullishPercentage: number
+}
+
+export interface SentimentUserResponse {
+  symbol: string
+  type: SentimentType
+  updatedAt: string
+}

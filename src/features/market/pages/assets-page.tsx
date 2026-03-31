@@ -117,7 +117,7 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
       </td>
 
       {/* Symbole */}
-      <td onClick={handleRowClick} className="px-4 py-3">
+      <td onClick={handleRowClick} className="cursor-pointer px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary dark:bg-primary/20">
             {asset.symbol.slice(0, 2)}
@@ -129,7 +129,7 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
       </td>
 
       {/* Dernier prix */}
-      <td onClick={handleRowClick} className="px-4 py-3 text-right font-mono text-sm">
+      <td onClick={handleRowClick} className="cursor-pointer px-4 py-3 text-right font-mono text-sm">
         {isAvailable ? (
           <span className="text-slate-900 dark:text-white">
             ${asset.lastPrice!.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -158,7 +158,7 @@ function AssetRow({ asset, rank, isFavorite, toggling, onToggleFavorite }: Asset
       </td>
 
       {/* Statut */}
-      <td onClick={handleRowClick} className="hidden px-4 py-3 text-center lg:table-cell">
+      <td onClick={handleRowClick} className="cursor-pointer hidden px-4 py-3 text-center lg:table-cell">
         {isAvailable ? (
           <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
             Disponible

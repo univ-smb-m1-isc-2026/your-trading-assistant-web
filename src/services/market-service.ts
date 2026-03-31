@@ -14,7 +14,10 @@ import type {
   ChartPatternResponse, 
   Page, 
   ChartPatternDetail,
-  PatternStats
+  PatternStats,
+  SentimentPollResponse,
+  SentimentUserResponse,
+  SentimentType
 } from '@/types/api'
 
 /**
@@ -139,4 +142,40 @@ export async function getPatternStats(
   if (category) params.append('category', category)
 
   return apiClient.request<PatternStats>(`/patterns/stats?${params.toString()}`)
+}
+
+// --- Sentiment Communautaire ---
+
+/**
+ * Récupère le résultat du sondage public pour un actif spécifique.
+ * GET /assets/{symbol}/sentiments/poll
+ */
+export async function getSentimentPoll(symbol: string): Promise<SentimentPollResponse> {
+  return apiClient.request<SentimentPollResponse>(`/assets/${symbol}/sentiments/poll`)
+}
+
+/**
+ * Récupère le vote actuel de l'utilisateur connecté pour cet actif.
+ * GET /assets/{symbol}/sentiments/me
+ * Renvoie null si l'utilisateur n'a pas encore voté (HTTP 204).
+ */
+export async function getUserSentiment(symbol: string): Promise<SentimentUserResponse | null> {
+  try {
+    return await apiClient.request<SentimentUserResponse>(`/assets/${symbol}/sentiments/me`)
+  } catch (error) {
+    // Si l'api client ne gère pas le 204 proprement ou renvoie une erreur vide
+    // on gère ça ici, bien que l'API renvoie HTTP 204 No Content
+    return null
+  }
+}
+
+/**
+ * Soumet ou modifie le vote de l'utilisateur.
+ * PUT /assets/{symbol}/sentiments/me
+ */
+export async function putUserSentiment(symbol: string, type: SentimentType): Promise<SentimentUserResponse> {
+  return apiClient.request<SentimentUserResponse>(`/assets/${symbol}/sentiments/me`, {
+    method: 'PUT',
+    body: JSON.stringify({ type })
+  })
 }

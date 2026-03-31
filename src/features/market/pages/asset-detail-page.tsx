@@ -31,6 +31,7 @@ import { useChartPatterns } from '../hooks/use-chart-patterns'
 import { CandlestickChart } from '@/components/ui/candlestick-chart'
 import { PatternLibrary } from '../components/pattern-library'
 import { AssetPredictionWidget } from '@/features/predictions'
+import { AssetSentimentWidget } from '../components/asset-sentiment-widget'
 import { AlertForm, AlertCard, TriggeredAlertCard, useAssetAlerts } from '@/features/alerts'
 import { cn } from '@/utils/cn'
 
@@ -380,7 +381,10 @@ export function AssetDetailPage() {
 
         {/* Colonne de droite : Alertes (Sticky sur desktop) */}
         {!loading && !error && symbol && (
-          <div className="w-full shrink-0 lg:sticky lg:top-6 lg:w-[360px] xl:w-[400px]">
+          <div className="w-full shrink-0 lg:sticky lg:top-6 lg:w-[360px] xl:w-[400px] flex flex-col gap-6">
+            
+            <AssetSentimentWidget symbol={symbol} />
+
             <div className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <h2 className="mb-4 text-lg font-bold text-slate-900 dark:text-white">Alertes</h2>
 

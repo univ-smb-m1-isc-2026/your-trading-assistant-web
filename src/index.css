@@ -148,3 +148,18 @@ body {
   );
   background-size: 1rem 1rem;
 }
+
+/*
+ * Correction Tailwind v4 : Les boutons n'ont plus de cursor-pointer par défaut
+ * On le remet globalement pour une meilleure UX
+ */
+button,
+[role="button"],
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"]:disabled {
+  cursor: not-allowed;
+}
