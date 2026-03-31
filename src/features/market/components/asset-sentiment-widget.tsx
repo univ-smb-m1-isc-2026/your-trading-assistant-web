@@ -76,34 +76,42 @@ export function AssetSentimentWidget({ symbol, className }: AssetSentimentWidget
         </button>
       </div>
 
-      <div className="flex items-center justify-between mb-2 px-1 text-xs font-medium">
-        <span className="text-green-600 dark:text-green-500">
-          {bullishPct.toFixed(0)}% ({bullishCount} votes)
-        </span>
-        <span className="text-red-600 dark:text-red-500">
-          {bearishPct.toFixed(0)}% ({bearishCount} votes)
-        </span>
-      </div>
+      {userVote ? (
+        <>
+          <div className="flex items-center justify-between mb-2 px-1 text-xs font-medium">
+            <span className="text-green-600 dark:text-green-500">
+              {bullishPct.toFixed(0)}% ({bullishCount} votes)
+            </span>
+            <span className="text-red-600 dark:text-red-500">
+              {bearishPct.toFixed(0)}% ({bearishCount} votes)
+            </span>
+          </div>
 
-      <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-        {totalVotes === 0 ? (
-          // Barre grise si aucun vote
-          <div className="absolute inset-0 bg-slate-300 dark:bg-slate-600" />
-        ) : (
-          <>
-            {/* Partie Bullish (Vert) */}
-            <div 
-              className="absolute left-0 top-0 h-full bg-green-500 transition-all duration-500 ease-out"
-              style={{ width: `${bullishPct}%` }}
-            />
-            {/* Partie Bearish (Rouge) */}
-            <div 
-              className="absolute right-0 top-0 h-full bg-red-500 transition-all duration-500 ease-out"
-              style={{ width: `${bearishPct}%` }}
-            />
-          </>
-        )}
-      </div>
+          <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+            {totalVotes === 0 ? (
+              // Barre grise si aucun vote
+              <div className="absolute inset-0 bg-slate-300 dark:bg-slate-600" />
+            ) : (
+              <>
+                {/* Partie Bullish (Vert) */}
+                <div 
+                  className="absolute left-0 top-0 h-full bg-green-500 transition-all duration-500 ease-out"
+                  style={{ width: `${bullishPct}%` }}
+                />
+                {/* Partie Bearish (Rouge) */}
+                <div 
+                  className="absolute right-0 top-0 h-full bg-red-500 transition-all duration-500 ease-out"
+                  style={{ width: `${bearishPct}%` }}
+                />
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="text-center py-2 text-sm text-slate-500 dark:text-slate-400 italic">
+          Votez pour voir l'avis de la communauté
+        </div>
+      )}
     </div>
   )
 }
