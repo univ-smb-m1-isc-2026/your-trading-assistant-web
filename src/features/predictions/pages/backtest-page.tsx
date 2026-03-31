@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/utils/cn'
 import { useBacktestGlobal } from '../hooks/use-backtest-global'
 import { useBacktestAssets } from '../hooks/use-backtest-assets'
+import { SuccessRateBar } from '../components/success-rate-bar'
 
 type TimeFilter = '7J' | '30J' | '6M' | 'TOUT'
 
@@ -18,6 +20,7 @@ function getStartDate(filter: TimeFilter): string | undefined {
 
 export function BacktestPage() {
   const [filter, setFilter] = useState<TimeFilter>('30J')
+  const navigate = useNavigate()
   const startDate = getStartDate(filter)
   
   const { stats: globalStats, isLoading: globalLoading } = useBacktestGlobal(startDate)
@@ -134,10 +137,13 @@ export function BacktestPage() {
                 {/* Tri par taux de réussite descendant */}
                 {[...assetsStats].sort((a, b) => b.successRatePct - a.successRatePct).map((stat) => {
                   const hue = stat.symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 35 % 360
-                  const isGood = stat.successRatePct >= 50
                   
                   return (
-                    <tr key={stat.symbol} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <tr 
+                      key={stat.symbol} 
+                      className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                      onClick={() => navigate(`/assets/${stat.symbol}`)}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div 
@@ -155,33 +161,10 @@ export function BacktestPage() {
                         {stat.totalPredictions}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className={cn(
-                              "font-bold",
-                              isGood ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                            )}>
-                              {stat.successRatePct.toFixed(1)}%
-                            </span>
-                            <span 
-                              className="text-xs text-blue-600 dark:text-blue-400 font-medium cursor-help"
-                              title="Taux de réussite potentiel si la position avait été fermée au meilleur moment de la journée (indique des opportunités de gain en cours de journée, même si la clôture était défavorable)."
-                            >
-                              Max: {stat.maxPotentialSuccessRatePct.toFixed(1)}%
-                            </span>
-                          </div>
-                          {/* Barre de progression visuelle empilée */}
-                          <div className="h-2 w-full min-w-[100px] overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 flex">
-                            <div 
-                              className={cn("h-full", isGood ? "bg-green-500" : "bg-red-500")}
-                              style={{ width: `${Math.min(100, Math.max(0, stat.successRatePct))}%` }}
-                            />
-                            <div 
-                              className="h-full bg-blue-400/50 dark:bg-blue-500/50 striped-bg"
-                              style={{ width: `${Math.max(0, Math.min(100, stat.maxPotentialSuccessRatePct) - stat.successRatePct)}%` }}
-                            />
-                          </div>
-                        </div>
+                        <SuccessRateBar 
+                          successRatePct={stat.successRatePct} 
+                          maxPotentialSuccessRatePct={stat.maxPotentialSuccessRatePct} 
+                        />
                       </td>
                       <td className="px-6 py-4 text-right font-medium text-slate-700 dark:text-slate-300">
                         {stat.meanAbsoluteErrorPct.toFixed(2)}%

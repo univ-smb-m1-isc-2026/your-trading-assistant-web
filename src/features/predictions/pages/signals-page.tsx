@@ -3,6 +3,7 @@ import { PredictionBadge } from '../components/prediction-badge'
 import { PredictionStatsBanner } from '../components/prediction-stats-banner'
 import { TopPredictionsTable } from '../components/top-predictions-table'
 import { useTopPredictions } from '../hooks/use-top-predictions'
+import { useBacktestAssets } from '../hooks/use-backtest-assets'
 
 function ChevronDownIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -33,6 +34,11 @@ export function SignalsPage() {
   const [date, setDate] = useState<string | undefined>(defaultDate)
 
   const { predictions, isLoading, error } = useTopPredictions(limit, date)
+
+  // Fetch stats for the last 30 days to display reliability
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const { stats: backtestStats } = useBacktestAssets(thirtyDaysAgo.toISOString().split('T')[0])
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value
@@ -83,7 +89,7 @@ export function SignalsPage() {
       <PredictionStatsBanner />
 
       {/* Tableau des signaux */}
-      <TopPredictionsTable predictions={predictions} isLoading={isLoading} error={error} />
+      <TopPredictionsTable predictions={predictions} isLoading={isLoading} error={error} backtestStats={backtestStats} />
     </div>
   )
 }

@@ -1,0 +1,2 @@
+Extract the success rate display logic into a new shared component: src/features/predictions/components/success-rate-bar.tsx
+Use this new component in both backtest-page.tsx and top-predictions-table.tsx.

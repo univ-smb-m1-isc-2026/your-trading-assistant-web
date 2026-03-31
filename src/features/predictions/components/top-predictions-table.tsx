@@ -1,11 +1,14 @@
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/utils/cn'
-import type { PredictionResponse } from '@/types/api'
+import { SuccessRateBar } from './success-rate-bar'
+import type { PredictionResponse, BacktestAssetStats } from '@/types/api'
 
 interface TopPredictionsTableProps {
   predictions: PredictionResponse[]
   isLoading: boolean
   error: string | null
+  backtestStats?: BacktestAssetStats[]
 }
 
 function TrendingUpIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -26,8 +29,33 @@ function TrendingDownIcon(props: React.SVGProps<SVGSVGElement>) {
   )
 }
 
-export function TopPredictionsTable({ predictions, isLoading, error }: TopPredictionsTableProps) {
+export function TopPredictionsTable({ predictions, isLoading, error, backtestStats }: TopPredictionsTableProps) {
   const navigate = useNavigate()
+  const [sortField, setSortField] = useState<'variation' | 'success'>('variation')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
+
+  const sortedPredictions = useMemo(() => {
+    return [...predictions].sort((a, b) => {
+      if (sortField === 'variation') {
+        const valA = Math.abs(a.predictedVariationPct)
+        const valB = Math.abs(b.predictedVariationPct)
+        return sortDir === 'desc' ? valB - valA : valA - valB
+      } else {
+        const statA = backtestStats?.find(s => s.symbol === a.symbol)?.successRatePct ?? -1
+        const statB = backtestStats?.find(s => s.symbol === b.symbol)?.successRatePct ?? -1
+        return sortDir === 'desc' ? statB - statA : statA - statB
+      }
+    })
+  }, [predictions, backtestStats, sortField, sortDir])
+
+  const toggleSort = (field: 'variation' | 'success') => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'desc' ? 'asc' : 'desc')
+    } else {
+      setSortField(field)
+      setSortDir('desc')
+    }
+  }
 
   if (isLoading) {
     return (
@@ -61,21 +89,47 @@ export function TopPredictionsTable({ predictions, isLoading, error }: TopPredic
             <tr>
               <th className="px-6 py-4 font-semibold">Actif</th>
               <th className="px-6 py-4 font-semibold">Direction</th>
-              <th className="px-6 py-4 font-semibold">Variation</th>
+              <th 
+                className="px-6 py-4 font-semibold cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none"
+                onClick={() => toggleSort('variation')}
+              >
+                <div className="flex items-center gap-1">
+                  Variation Absolue
+                  {sortField === 'variation' && (
+                    <span className="text-xs">{sortDir === 'desc' ? '↓' : '↑'}</span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="px-6 py-4 font-semibold cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none"
+                onClick={() => toggleSort('success')}
+              >
+                <div className="flex items-center gap-1">
+                  Fiabilité (30J)
+                  {sortField === 'success' && (
+                    <span className="text-xs">{sortDir === 'desc' ? '↓' : '↑'}</span>
+                  )}
+                </div>
+              </th>
               <th className="px-6 py-4 text-right font-semibold">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {predictions.map((pred) => {
+            {sortedPredictions.map((pred) => {
               const isUp = pred.predictedVariationPct >= 0
               const colorClass = isUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
               const bgClass = isUp ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'
               
               // Helper to generate a determinist color for the circle based on symbol
               const hue = pred.symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) * 35 % 360
+              const stat = backtestStats?.find(s => s.symbol === pred.symbol)
               
               return (
-                <tr key={pred.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <tr 
+                  key={pred.id} 
+                  className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
+                  onClick={() => navigate(`/assets/${pred.symbol}`)}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div 
@@ -100,9 +154,22 @@ export function TopPredictionsTable({ predictions, isLoading, error }: TopPredic
                       {pred.predictedVariationPct > 0 ? '+' : ''}{(pred.predictedVariationPct).toFixed(2)}%
                     </span>
                   </td>
+                  <td className="px-6 py-4">
+                    {stat ? (
+                      <SuccessRateBar 
+                        successRatePct={stat.successRatePct} 
+                        maxPotentialSuccessRatePct={stat.maxPotentialSuccessRatePct} 
+                      />
+                    ) : (
+                      <span className="text-slate-400 dark:text-slate-500">-</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => navigate(`/assets/${pred.symbol}`)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/assets/${pred.symbol}`)
+                      }}
                       className="inline-flex items-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-offset-slate-900"
                     >
                       Détails

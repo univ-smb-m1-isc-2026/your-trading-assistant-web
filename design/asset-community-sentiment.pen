@@ -1,0 +1,208 @@
+{
+  "version": "2.9",
+  "children": [
+    {
+      "type": "frame",
+      "id": "3k5Ko",
+      "x": 0,
+      "y": 0,
+      "name": "widget",
+      "width": 400,
+      "fill": "$cardBg",
+      "cornerRadius": 12,
+      "stroke": {
+        "thickness": 1,
+        "fill": "$border"
+      },
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "frame",
+          "id": "deNJY",
+          "name": "header",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "J7IuS",
+              "name": "title",
+              "fill": "$textPrimary",
+              "content": "Sentiment de la communauté",
+              "fontFamily": "Inter",
+              "fontSize": 16,
+              "fontWeight": "600"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "vCjgN",
+          "name": "buttonsRow",
+          "width": "fill_container",
+          "gap": 12,
+          "children": [
+            {
+              "type": "frame",
+              "id": "5Ogxl",
+              "name": "bullishBtn",
+              "width": "fill_container",
+              "height": 48,
+              "fill": "$bullish",
+              "cornerRadius": 8,
+              "gap": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "6Q2Xq",
+                  "name": "bullishIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "trending-up",
+                  "iconFontFamily": "lucide",
+                  "fill": "#ffffff"
+                },
+                {
+                  "type": "text",
+                  "id": "bfuE3",
+                  "name": "bullishText",
+                  "fill": "#ffffff",
+                  "content": "Bullish",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "WJEps",
+              "name": "bearishBtn",
+              "width": "fill_container",
+              "height": 48,
+              "fill": "$bearish",
+              "cornerRadius": 8,
+              "gap": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "3Z1a0",
+                  "name": "bearishIcon",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "trending-down",
+                  "iconFontFamily": "lucide",
+                  "fill": "#ffffff"
+                },
+                {
+                  "type": "text",
+                  "id": "CGkYr",
+                  "name": "bearishText",
+                  "fill": "#ffffff",
+                  "content": "Bearish",
+                  "fontFamily": "Inter",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QT6vc",
+          "name": "statsRow",
+          "width": "fill_container",
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "aLiYb",
+              "name": "bullishStats",
+              "fill": "$bullish",
+              "content": "72% (143 votes)",
+              "fontFamily": "Inter",
+              "fontSize": 12,
+              "fontWeight": "500"
+            },
+            {
+              "type": "text",
+              "id": "E6Y6T",
+              "name": "bearishStats",
+              "fill": "$bearish",
+              "content": "28% (57 votes)",
+              "fontFamily": "Inter",
+              "fontSize": 12,
+              "fontWeight": "500"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "V1uFD",
+          "name": "progressBarRow",
+          "clip": true,
+          "width": "fill_container",
+          "height": 8,
+          "cornerRadius": 4,
+          "children": [
+            {
+              "type": "frame",
+              "id": "W8uhd",
+              "name": "bullishBar",
+              "width": 250,
+              "height": "fill_container",
+              "fill": "$bullish"
+            },
+            {
+              "type": "frame",
+              "id": "2q4mW",
+              "name": "bearishBar",
+              "width": "fill_container",
+              "height": "fill_container",
+              "fill": "$bearish"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bearish": {
+      "type": "color",
+      "value": "#ef4444"
+    },
+    "bg": {
+      "type": "color",
+      "value": "#0f172a"
+    },
+    "border": {
+      "type": "color",
+      "value": "#334155"
+    },
+    "bullish": {
+      "type": "color",
+      "value": "#22c55e"
+    },
+    "cardBg": {
+      "type": "color",
+      "value": "#1e293b"
+    },
+    "textPrimary": {
+      "type": "color",
+      "value": "#f8fafc"
+    },
+    "textSecondary": {
+      "type": "color",
+      "value": "#94a3b8"
+    }
+  }
+}

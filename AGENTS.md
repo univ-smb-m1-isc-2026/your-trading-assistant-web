@@ -120,9 +120,10 @@ features/predictions/
 │   ├── asset-prediction-widget.tsx # Under-chart UI showing latest prediction, history & 30D backtest
 │   ├── prediction-badge.tsx        # Small UI element showing expected variation with up/down arrows
 │   ├── prediction-stats-banner.tsx # Global health check banner for predictions performance
-│   └── top-predictions-table.tsx   # Table ranking assets by predicted variation (+/-)
+│   ├── success-rate-bar.tsx        # UI component for historical accuracy (percent + bidirectional bar)
+│   └── top-predictions-table.tsx   # Sortable table (by variation or success rate) with clickable rows
 ├── pages/
-│   ├── signals-page.tsx        # Global view of top predictions & market health
+│   ├── signals-page.tsx        # Global view of top predictions with 30-day reliability metrics
 │   └── backtest-page.tsx       # Historical performance review (Global KPI & per-asset table)
 └── index.ts
 
