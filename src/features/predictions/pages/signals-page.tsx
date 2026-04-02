@@ -85,7 +85,7 @@ export function SignalsPage() {
         </div>
       </div>
 
-      {/* Bannière Stats (Debug) */}
+      {/* Bannière Stats */}
       <PredictionStatsBanner />
 
       {/* Tableau des signaux */}
